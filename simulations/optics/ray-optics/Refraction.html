@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Refraction through Prism & Lenses — Snell's Law Simulator</title>
+  <style>
+    :root{
+      --bg:#0f1724; --panel:#0b1220; --accent:#06b6d4; --muted:#94a3b8; --glass: rgba(255,255,255,0.04);
+      --ui-radius:10px; --mono: 'Segoe UI Mono', Consolas, monospace;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071026 0%, #071a2a 60%);font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:#dbeafe}
+    .app{display:flex;height:100%;gap:16px;padding:18px;box-sizing:border-box}
+    .left{flex:1;display:flex;flex-direction:column;gap:12px}
+    .canvas-wrap{flex:1;background:var(--panel);border-radius:var(--ui-radius);box-shadow:0 6px 30px rgba(2,6,23,0.7);padding:12px;position:relative;overflow:hidden}
+    canvas{width:100%;height:100%;display:block;border-radius:8px;background:linear-gradient(180deg, rgba(8,13,23,0.6), rgba(4,7,12,0.6));}
+    .controls{width:360px;min-width:320px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));border-radius:var(--ui-radius);padding:14px;box-shadow:0 6px 30px rgba(2,6,23,0.6);display:flex;flex-direction:column;gap:12px}
+    .row{display:flex;gap:10px;align-items:center}
+    label{font-size:13px;color:var(--muted);min-width:120px}
+    input[type=range]{width:100%}
+    .small{font-size:12px;color:#a5b4cc}
+    .btn{background:var(--accent);color:#012; padding:8px 10px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .toggles{display:flex;gap:8px}
+    .chip{background:var(--glass);padding:8px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
+    .chip.active{background:linear-gradient(90deg,#063047,#0ea5b2);color:#012}
+    .footer{font-size:12px;color:var(--muted);}
+    .legend{position:absolute;left:14px;bottom:14px;background:rgba(3,7,12,0.6);padding:8px;border-radius:8px;font-size:13px}
+    .info{font-size:13px;color:#cfeff6}
+    .slidernum{width:64px;text-align:right;font-family:var(--mono);font-size:13px;color:#cfeff6}
+    .header{display:flex;justify-content:space-between;align-items:center}
+    .title{font-weight:700;font-size:16px}
+    .sub{font-size:12px;color:var(--muted)}
+    .credits{font-size:12px;color:var(--muted);text-align:center}
+    .controls .section{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px}
+    .linkish{color:var(--accent);text-decoration:underline;cursor:pointer}
+    .note{font-size:12px;color:#9fb7c2}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="left">
+      <div class="canvas-wrap">
+        <div class="header" style="position:absolute;left:14px;top:12px;z-index:50">
+          <div>
+            <div class="title">Refraction Simulator</div>
+            <div class="sub">Snell's law • drag the source or change indices and shapes</div>
+          </div>
+        </div>
+        <canvas id="view"></canvas>
+        <div class="legend">
+          <div><strong>Blue</strong> = incident ray • <strong>Green</strong> = refracted • <strong>Red</strong> = reflected / TIR</div>
+        </div>
+      </div>
+      <div class="credits">Built with Snell's Law. Made By Kalpajit</div>
+    </div>
+
+    <div class="controls">
+      <div class="section">
+        <div class="row"><label>Mode</label>
+          <div class="toggles">
+            <div id="modePrism" class="chip active">Prism</div>
+            <div id="modeLens" class="chip">Lens</div>
+          </div>
+        </div>
+
+        <div class="row"><label>Incident source</label>
+          <div style="flex:1">
+            <div class="row">
+              <div class="small">Drag the white dot in canvas to move source</div>
+              <div style="flex:1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="row"><label>Medium index (n₁)</label>
+          <input id="n1" type="range" min="1" max="2" step="0.01" value="1" />
+          <div class="slidernum" id="n1v">1.00</div>
+        </div>
+        <div class="row"><label>Object index (n₂)</label>
+          <input id="n2" type="range" min="1" max="2.6" step="0.01" value="1.5" />
+          <div class="slidernum" id="n2v">1.50</div>
+        </div>
+        <div class="row" id="prismAngleRow"><label>Prism apex (°)</label>
+          <input id="prismAngle" type="range" min="20" max="80" step="1" value="60" />
+          <div class="slidernum" id="prismAnglev">60°</div>
+        </div>
+        <div class="row" id="prismWidthRow"><label>Prism size</label>
+          <input id="prismSize" type="range" min="80" max="300" step="1" value="180" />
+          <div class="slidernum" id="prismSizev">180</div>
+        </div>
+
+        <div class="row" id="lensTypeRow" style="display:none"><label>Lens</label>
+          <select id="lensType" style="flex:1;padding:6px;border-radius:6px;background:transparent;color:var(--muted)">
+            <option value="convex">Convex (converging)</option>
+            <option value="concave">Concave (diverging)</option>
+          </select>
+        </div>
+        <div class="row" id="lensFocalRow" style="display:none"><label>Focal length</label>
+          <input id="focal" type="range" min="50" max="500" step="1" value="150" />
+          <div class="slidernum" id="focalv">150</div>
+        </div>
+
+      </div>
+
+      <div class="section">
+        <div class="row"><label>Show normals</label>
+          <div style="flex:1"><input id="showNormals" type="checkbox" checked /></div>
+        </div>
+        <div class="row"><label>Show angles</label>
+          <div style="flex:1"><input id="showAngles" type="checkbox" checked /></div>
+        </div>
+        <div class="row"><label>Show path</label>
+          <div style="flex:1"><input id="showPath" type="checkbox" checked /></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="row"><label>Wavelength (nm)</label>
+          <input id="lambda" type="range" min="380" max="780" step="1" value="550" />
+          <div class="slidernum" id="lambdav">550</div>
+        </div>
+        <div class="note">Wavelength is used only to tint rays (no dispersion model) — toggle indices to see TIR and refraction behaviour.</div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+        <button id="reset" class="btn">Reset</button>
+        <div class="info">Tip: drag the white source dot in the canvas; change indices & geometry.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  // --- Utility math helpers ---
+  function vec(x,y){return {x:+x,y:+y};}
+  function add(a,b){return {x:a.x+b.x,y:a.y+b.y}};
+  function sub(a,b){return {x:a.x-b.x,y:a.y-b.y}};
+  function mul(a,s){return {x:a.x*s,y:a.y*s}};
+  function dot(a,b){return a.x*b.x+a.y*b.y};
+  function len(a){return Math.sqrt(a.x*a.x+a.y*a.y)};
+  function norm(a){let L=len(a)||1;return {x:a.x/L,y:a.y/L}};
+  function perp(a){return {x:-a.y,y:a.x}};
+
+  // Refract using vector form (GLSL-like) returns null if TIR
+  function refract(I, N, eta){
+    // I incoming should be normalized, N normalized and pointing *against* I (i.e. from surface into incident medium)
+    let cosi = Math.max(-1, Math.min(1, dot(I, N)*-1));
+    let etai = 1, etat = eta; // but caller gives ratio n1/n2
+    let ratio = etai/etat; // here etai is 1; we'll pass ratio differently; to be safe we accept eta as n1/n2
+    ratio = eta; // eta = n1/n2
+    let k = 1 - ratio*ratio*(1 - cosi*cosi);
+    if(k < 0) return null; // TIR
+    let refr = add(mul(I, ratio), mul(N, (ratio * cosi - Math.sqrt(k))));
+    return norm(refr);
+  }
+
+  // Snell scalar angle helper
+  function snellAngle(n1,n2,theta1){
+    // theta1 in radians
+    let s = n1*Math.sin(theta1)/n2;
+    if(Math.abs(s) > 1) return null; // TIR
+    return Math.asin(s);
+  }
+
+  // colorize by wavelength (approx)
+  function wavelengthToRGB(w){w=+w;let r=0,g=0,b=0; if(w>=380 && w<440){r=-(w-440)/(440-380);g=0;b=1}
+    else if(w>=440 && w<490){r=0;g=(w-440)/(490-440);b=1}
+    else if(w>=490 && w<510){r=0;g=1;b=-(w-510)/(510-490)}
+    else if(w>=510 && w<580){r=(w-510)/(580-510);g=1;b=0}
+    else if(w>=580 && w<645){r=1;g=-(w-645)/(645-580);b=0}
+    else if(w>=645 && w<=780){r=1;g=0;b=0}
+    // intensity correction
+    let factor=1; if(w>700) factor=0.3+(780-w)/80*0.7; if(w<420) factor=0.3+(w-380)/40*0.7;
+    r=Math.round(r*255*factor);g=Math.round(g*255*factor);b=Math.round(b*255*factor);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // Canvas setup
+  const canvas = document.getElementById('view');
+  const ctx = canvas.getContext('2d');
+  function resize(){
+    canvas.width = canvas.clientWidth * devicePixelRatio;
+    canvas.height = canvas.clientHeight * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  // UI elements
+  const modePrism = document.getElementById('modePrism');
+  const modeLens = document.getElementById('modeLens');
+  const n1s = document.getElementById('n1'); const n2s=document.getElementById('n2');
+  const n1v=document.getElementById('n1v'); const n2v=document.getElementById('n2v');
+  const prismAngle = document.getElementById('prismAngle'); const prismAnglev=document.getElementById('prismAnglev');
+  const prismSize = document.getElementById('prismSize'); const prismSizev=document.getElementById('prismSizev');
+  const lambda = document.getElementById('lambda'); const lambdav=document.getElementById('lambdav');
+  const showNormals = document.getElementById('showNormals'); const showAngles=document.getElementById('showAngles'); const showPath=document.getElementById('showPath');
+  const prismAngleRow=document.getElementById('prismAngleRow'); const prismWidthRow=document.getElementById('prismWidthRow');
+  const lensTypeRow=document.getElementById('lensTypeRow'); const lensFocalRow=document.getElementById('lensFocalRow');
+  const lensType=document.getElementById('lensType'); const focal=document.getElementById('focal'); const focalv=document.getElementById('focalv');
+  const reset=document.getElementById('reset');
+
+  // Initial geometry state
+  let state = {
+    mode: 'prism',
+    n1: +n1s.value,
+    n2: +n2s.value,
+    prismApex: +prismAngle.value * Math.PI/180,
+    prismSize:+prismSize.value,
+    lensType: lensType.value,
+    focal:+focal.value,
+    wavelength:+lambda.value,
+    showNormals: showNormals.checked,
+    showAngles: showAngles.checked,
+    showPath: showPath.checked,
+  };
+
+  // Source (draggable)
+  let src = {x:120, y:200};
+  let dragging=false;
+
+  // Prism geometry (triangle centered in canvas)
+  function prismPoly(cx,cy,size,apexAngle){
+    // isosceles triangle with apex at top
+    let h = size * Math.cos(apexAngle/2);
+    let halfBase = size * Math.sin(apexAngle/2);
+    let p1 = {x:cx, y:cy - (h/2)}; // apex top
+    let p2 = {x:cx - halfBase, y:cy + (h/2)};
+    let p3 = {x:cx + halfBase, y:cy + (h/2)};
+    return [p1,p2,p3];
+  }
+
+  // Lens geometry: circle arcs approximation (thin lens surfaces)
+  function lensSurfaces(cx,cy,sep,radius,type){
+    // For simplicity we represent two circle centers and radii and surface directions
+    // Type convex: two outward curved surfaces that converge
+    let sign = (type==='convex')?1:-1;
+    let R = radius;
+    let leftCenter = {x:cx - sep/2 - sign*R, y:cy};
+    let rightCenter = {x:cx + sep/2 + sign*R, y:cy};
+    return [{c:leftCenter,R:R,dir:sign},{c:rightCenter,R:R,dir:-sign}];
+  }
+
+  // Ray-surface intersection helpers for line-circle and line-segment
+  function intersectLineSegment(p,dir,a,b){
+    // line p + t*dir, segment a->b; return t and u (segment param) if intersects t>0 and 0<=u<=1
+    let v = sub(b,a);
+    let denom = dir.x * v.y - dir.y * v.x;
+    if(Math.abs(denom) < 1e-6) return null;
+    let ap = sub(a,p);
+    let t = (ap.x * v.y - ap.y * v.x)/denom;
+    let u = (ap.x * dir.y - ap.y * dir.x)/denom;
+    if(t>=0 && u>=0 && u<=1) return {t,u,pt:add(p,mul(dir,t))};
+    return null;
+  }
+
+  function intersectLineCircle(p,dir,c,R){
+    // Solve |p + t*dir - c|^2 = R^2, dir normalized
+    let oc = sub(p,c);
+    let b = 2*dot(dir,oc);
+    let c0 = dot(oc,oc) - R*R;
+    let disc = b*b - 4*c0;
+    if(disc < 0) return null;
+    let t1 = (-b - Math.sqrt(disc))/2; let t2 = (-b + Math.sqrt(disc))/2;
+    let t = (t1>1e-6)?t1:((t2>1e-6)?t2:null);
+    if(t===null) return null;
+    return {t,pt:add(p,mul(dir,t))};
+  }
+
+  // Render loop: we'll trace one ray from source through scene
+  function draw(){
+    resize();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let W = canvas.clientWidth, H = canvas.clientHeight;
+
+    // background grid
+    ctx.save();
+    ctx.globalAlpha=0.08; ctx.strokeStyle='#1e293b'; ctx.lineWidth=1;
+    for(let x=0;x<W;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    ctx.restore();
+
+    // scene center
+    let cx = W*0.6, cy = H*0.45;
+
+    // draw prism or lens
+    if(state.mode==='prism'){
+      let poly = prismPoly(cx,cy,state.prismSize,state.prismApex);
+      // fill
+      ctx.fillStyle='rgba(12,58,84,0.25)'; ctx.beginPath(); ctx.moveTo(poly[0].x,poly[0].y);
+      ctx.lineTo(poly[1].x,poly[1].y); ctx.lineTo(poly[2].x,poly[2].y); ctx.closePath(); ctx.fill();
+      // outline
+      ctx.strokeStyle='rgba(180,230,240,0.12)'; ctx.lineWidth=2; ctx.stroke();
+
+      // trace incident ray to each edge -> pick first intersection
+      let dir = norm(sub({x:cx,y:cy},src)); // default direction roughly to center
+      // If user dragged, source->mouse later provides direction from source toward center
+      // We'll perform many initial rays offset to simulate beam? For simplicity only one ray
+
+      traceRayThroughPrism(src, dir, poly);
+    } else {
+      // lens
+      // approximate lens as two circle arcs placed around cx,cy
+      let sep = 10; let R = Math.max(80, state.focal*1.6);
+      let surfaces = lensSurfaces(cx,cy,sep,R,state.lensType);
+      // draw lens fill
+      ctx.beginPath();
+      // left arc
+      let left = surfaces[0], right = surfaces[1];
+      ctx.arc(left.c.x,left.c.y,left.R,Math.PI*0.5,Math.PI*1.5,true);
+      ctx.arc(right.c.x,right.c.y,right.R,Math.PI*1.5,Math.PI*0.5,true);
+      ctx.closePath(); ctx.fillStyle='rgba(22,90,110,0.22)'; ctx.fill();
+      ctx.strokeStyle='rgba(180,230,240,0.12)'; ctx.stroke();
+
+      traceRayThroughLens(src, norm(sub({x:cx,y:cy},src)), surfaces);
+    }
+
+    // draw source draggable dot
+    ctx.beginPath(); ctx.fillStyle='white'; ctx.strokeStyle='#022'; ctx.lineWidth=2; ctx.arc(src.x,src.y,8,0,Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // small label
+    ctx.fillStyle='#bfeaf6'; ctx.font='12px '+getComputedStyle(document.body).fontFamily; ctx.fillText('Source', src.x+14, src.y+6);
+  }
+
+  // Tracing functions
+  function traceRayThroughPrism(source, dir, poly){
+    // find first intersection with triangle edges
+    let edges = [[poly[0],poly[1]],[poly[1],poly[2]],[poly[2],poly[0]]];
+    let best = null; let bestEdgeIdx=-1;
+    for(let i=0;i<edges.length;i++){
+      let hit = intersectLineSegment(source,dir,edges[i][0],edges[i][1]);
+      if(hit && (best===null || hit.t < best.t)) {best=hit; bestEdgeIdx=i}
+    }
+    // draw incident ray
+    ctx.strokeStyle='rgba(100,150,255,0.9)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(source.x,source.y);
+    if(best){ ctx.lineTo(best.pt.x,best.pt.y); ctx.stroke(); }
+    else { ctx.lineTo(source.x+dir.x*2000, source.y+dir.y*2000); ctx.stroke(); return; }
+
+    // surface normal for the hit edge
+    let a=edges[bestEdgeIdx][0], b=edges[bestEdgeIdx][1];
+    let edgeVec = norm(sub(b,a));
+    let normal = norm(perp(edgeVec));
+    // ensure normal faces incoming ray (pointing out from surface toward incident medium)
+    if(dot(normal,dir) > 0) normal = mul(normal, -1);
+
+    if(state.showNormals){ drawNormalAt(best.pt, normal); }
+
+    // compute refracted direction using vector refract
+    let eta = state.n1 / state.n2; // n1/n2
+    let I = norm(dir);
+    // flip normal so that formula uses N pointing opposite incoming -> we already ensured that
+    let T = refract(I, normal, eta);
+
+    if(T===null){
+      // TIR: reflect
+      let R = reflect(I, normal);
+      ctx.strokeStyle='rgba(230,80,80,0.95)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(best.pt.x,best.pt.y); ctx.lineTo(best.pt.x+R.x*400, best.pt.y+R.y*400); ctx.stroke();
+      if(state.showAngles) { annotateAngle(best.pt, I, normal, 'TIR'); }
+      return;
+    }
+
+    // draw refracted inside prism
+    ctx.strokeStyle='rgba(100,255,160,0.95)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(best.pt.x,best.pt.y);
+    // trace to exit edge
+    let insideDir = T;
+    let exitBest=null; let exitEdgeIdx=-1;
+    for(let i=0;i<edges.length;i++){
+      if(i===bestEdgeIdx) continue; // skip the same edge
+      let hit = intersectLineSegment(best.pt, insideDir, edges[i][0], edges[i][1]);
+      if(hit && (!exitBest || hit.t < exitBest.t)) {exitBest = hit; exitEdgeIdx = i}
+    }
+    if(exitBest){ ctx.lineTo(exitBest.pt.x, exitBest.pt.y); ctx.stroke(); }
+    else { ctx.lineTo(best.pt.x+insideDir.x*2000, best.pt.y+insideDir.y*2000); ctx.stroke(); return; }
+
+    // compute outer normal at exit
+    let a2 = edges[exitEdgeIdx][0], b2 = edges[exitEdgeIdx][1];
+    let edgeVec2 = norm(sub(b2,a2));
+    let normal2 = norm(perp(edgeVec2)); if(dot(normal2, insideDir) > 0) normal2 = mul(normal2, -1);
+
+    if(state.showNormals){ drawNormalAt(exitBest.pt, normal2); }
+
+    // refract from prism (n2 -> n1)
+    let eta2 = state.n2 / state.n1; // now nprism/noutside
+    let Tout = refract(insideDir, normal2, eta2);
+    if(Tout===null){ // TIR inside
+      let R2 = reflect(insideDir, normal2);
+      ctx.strokeStyle='rgba(230,80,80,0.95)'; ctx.beginPath(); ctx.moveTo(exitBest.pt.x, exitBest.pt.y); ctx.lineTo(exitBest.pt.x+R2.x*400, exitBest.pt.y+R2.y*400); ctx.stroke();
+      if(state.showAngles) annotateAngle(exitBest.pt, insideDir, normal2, 'TIR');
+      return;
+    }
+
+    ctx.strokeStyle='rgba(100,255,160,0.95)'; ctx.beginPath(); ctx.moveTo(exitBest.pt.x, exitBest.pt.y); ctx.lineTo(exitBest.pt.x+Tout.x*2000, exitBest.pt.y+Tout.y*2000); ctx.stroke();
+
+    if(state.showAngles){ annotateAngle(best.pt, I, normal, 'in'); annotateAngle(exitBest.pt, insideDir, normal2, 'out'); }
+  }
+
+  function reflect(I,N){ // reflect vector I around N
+    let d = dot(I,N);
+    return norm(sub(I, mul(N,2*d)));
+  }
+
+  function drawNormalAt(p,n){ ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.moveTo(p.x - n.x*16, p.y - n.y*16); ctx.lineTo(p.x + n.x*16, p.y + n.y*16); ctx.stroke(); }
+
+  function annotateAngle(p,I,N,label){
+    // compute angle between incoming and normal
+    let a1 = Math.atan2(I.y, I.x); let a2 = Math.atan2(-N.y, -N.x); // normal points outwards
+    let ang = Math.abs(a1 - a2); if(ang>Math.PI) ang = 2*Math.PI - ang;
+    let deg = (ang*180/Math.PI).toFixed(1);
+    ctx.fillStyle='#cfeff6'; ctx.font='12px '+getComputedStyle(document.body).fontFamily; ctx.fillText(label+': '+deg+'°', p.x+10, p.y-10);
+  }
+
+  // Lens tracing: refract on two circular surfaces (approx)
+  function traceRayThroughLens(source, dir, surfaces){
+    // first intersection with left surface (circle)
+    let hit = intersectLineCircle(source, dir, surfaces[0].c, surfaces[0].R);
+    if(!hit){ ctx.strokeStyle='rgba(100,150,255,0.9)'; ctx.beginPath(); ctx.moveTo(source.x,source.y); ctx.lineTo(source.x+dir.x*2000, source.y+dir.y*2000); ctx.stroke(); return; }
+    ctx.strokeStyle='rgba(100,150,255,0.9)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(source.x,source.y); ctx.lineTo(hit.pt.x, hit.pt.y); ctx.stroke();
+    // normal at hit
+    let N = norm(sub(hit.pt, surfaces[0].c)); // points outward from surface center
+    // ensure normal facing incident
+    if(dot(N,dir) > 0) N = mul(N,-1);
+    if(state.showNormals) drawNormalAt(hit.pt,N);
+
+    // refract into lens
+    let eta = state.n1/state.n2;
+    let Tin = refract(norm(dir), N, eta);
+    if(Tin===null){ // TIR (unlikely for convex lens from air into glass)
+      let R = reflect(norm(dir), N);
+      ctx.strokeStyle='rgba(230,80,80,0.95)'; ctx.beginPath(); ctx.moveTo(hit.pt.x,hit.pt.y); ctx.lineTo(hit.pt.x+R.x*400, hit.pt.y+R.y*400); ctx.stroke(); return;
+    }
+    // trace inside to right surface intersection
+    let hit2 = intersectLineCircle(hit.pt, Tin, surfaces[1].c, surfaces[1].R);
+    if(!hit2){ ctx.strokeStyle='rgba(100,255,160,0.95)'; ctx.beginPath(); ctx.moveTo(hit.pt.x,hit.pt.y); ctx.lineTo(hit.pt.x+Tin.x*2000, hit.pt.y+Tin.y*2000); ctx.stroke(); return; }
+    ctx.strokeStyle='rgba(100,255,160,0.95)'; ctx.beginPath(); ctx.moveTo(hit.pt.x,hit.pt.y); ctx.lineTo(hit2.pt.x,hit2.pt.y); ctx.stroke();
+
+    // normal at exit
+    let N2 = norm(sub(hit2.pt, surfaces[1].c)); if(dot(N2,Tin)>0) N2 = mul(N2,-1);
+    if(state.showNormals) drawNormalAt(hit2.pt,N2);
+
+    // refract out
+    let Tout = refract(Tin, N2, state.n2/state.n1);
+    if(Tout===null){ let R2 = reflect(Tin,N2); ctx.strokeStyle='rgba(230,80,80,0.95)'; ctx.beginPath(); ctx.moveTo(hit2.pt.x,hit2.pt.y); ctx.lineTo(hit2.pt.x+R2.x*400, hit2.pt.y+R2.y*400); ctx.stroke(); return; }
+    ctx.strokeStyle='rgba(100,255,160,0.95)'; ctx.beginPath(); ctx.moveTo(hit2.pt.x,hit2.pt.y); ctx.lineTo(hit2.pt.x+Tout.x*2000, hit2.pt.y+Tout.y*2000); ctx.stroke();
+
+    if(state.showAngles){ annotateAngle(hit.pt, norm(dir), N,'in'); annotateAngle(hit2.pt,Tin,N2,'out'); }
+  }
+
+  // UI wiring
+  function updateStateFromUI(){ state.n1 = +n1s.value; state.n2 = +n2s.value; state.prismApex = +prismAngle.value*Math.PI/180; state.prismSize = +prismSize.value; state.wavelength = +lambda.value; state.showNormals = showNormals.checked; state.showAngles = showAngles.checked; state.showPath = showPath.checked; state.lensType = lensType.value; state.focal = +focal.value; }
+
+  n1s.addEventListener('input', ()=>{ n1v.textContent = (+n1s.value).toFixed(2); updateStateFromUI(); draw(); });
+  n2s.addEventListener('input', ()=>{ n2v.textContent = (+n2s.value).toFixed(2); updateStateFromUI(); draw(); });
+  prismAngle.addEventListener('input', ()=>{ prismAnglev.textContent = prismAngle.value+'°'; updateStateFromUI(); draw(); });
+  prismSize.addEventListener('input', ()=>{ prismSizev.textContent = prismSize.value; updateStateFromUI(); draw(); });
+  lambda.addEventListener('input', ()=>{ lambdav.textContent = lambda.value; updateStateFromUI(); draw(); });
+  showNormals.addEventListener('change', ()=>{ updateStateFromUI(); draw(); });
+  showAngles.addEventListener('change', ()=>{ updateStateFromUI(); draw(); });
+  showPath.addEventListener('change', ()=>{ updateStateFromUI(); draw(); });
+  lensType.addEventListener('change', ()=>{ updateStateFromUI(); draw(); });
+  focal.addEventListener('input', ()=>{ focalv.textContent=focal.value; updateStateFromUI(); draw(); });
+
+  modePrism.addEventListener('click', ()=>{ state.mode='prism'; modePrism.classList.add('active'); modeLens.classList.remove('active'); prismAngleRow.style.display='flex'; prismWidthRow.style.display='flex'; lensTypeRow.style.display='none'; lensFocalRow.style.display='none'; draw(); });
+  modeLens.addEventListener('click', ()=>{ state.mode='lens'; modeLens.classList.add('active'); modePrism.classList.remove('active'); prismAngleRow.style.display='none'; prismWidthRow.style.display='none'; lensTypeRow.style.display='flex'; lensFocalRow.style.display='flex'; draw(); });
+
+  reset.addEventListener('click', ()=>{ n1s.value=1; n2s.value=1.5; prismAngle.value=60; prismSize.value=180; lambda.value=550; lensType.value='convex'; focal.value=150; n1v.textContent='1.00'; n2v.textContent='1.50'; prismAnglev.textContent='60°'; prismSizev.textContent='180'; lambdav.textContent='550'; focalv.textContent='150'; updateStateFromUI(); draw(); });
+
+  // Mouse interaction for dragging source
+  canvas.addEventListener('pointerdown', (e)=>{ let r=canvas.getBoundingClientRect(); let x=(e.clientX - r.left), y=(e.clientY - r.top); if(Math.hypot(x-src.x,y-src.y) < 12){ dragging=true; canvas.setPointerCapture(e.pointerId); }});
+  canvas.addEventListener('pointermove', (e)=>{ if(!dragging) return; let r=canvas.getBoundingClientRect(); src.x = (e.clientX - r.left); src.y = (e.clientY - r.top); draw(); });
+  canvas.addEventListener('pointerup', (e)=>{ dragging=false; });
+
+  // init
+  updateStateFromUI(); resize(); draw();
+  // animation loop for subtle updates
+  (function loop(){ draw(); requestAnimationFrame(loop); })();
+
+  </script>
+</body>
+</html>

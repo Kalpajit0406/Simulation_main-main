@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electron Movement in Metals - Three.js Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            overflow: hidden;
+            background: linear-gradient(to bottom, #0a0a1a, #1a1a40);
+            color: #e0e0ff;
+        }
+        
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .ui-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(10, 10, 30, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 100, 255, 0.3);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            z-index: 100;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #4fc3f7;
+            text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #90caf9;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 5px;
+            -webkit-appearance: none;
+            background: rgba(100, 150, 255, 0.2);
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4fc3f7;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(79, 195, 247, 0.8);
+        }
+        
+        .value-display {
+            width: 50px;
+            text-align: right;
+            margin-left: 15px;
+            font-weight: 500;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(to right, #2196f3, #1976d2);
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #2c2c54;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #2196f3;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 10, 30, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            max-width: 400px;
+            box-shadow: 0 0 20px rgba(0, 100, 255, 0.3);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            z-index: 100;
+        }
+        
+        .info-panel h2 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #4fc3f7;
+        }
+        
+        .info-panel p {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        
+        .legend {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .legend-text {
+            font-size: 0.9rem;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0a0a1a;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(79, 195, 247, 0.3);
+            border-radius: 50%;
+            border-top-color: #4fc3f7;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="canvas-container"></div>
+    
+    <div class="ui-panel">
+        <h1>Electron Movement Simulation</h1>
+        
+        <div class="control-group">
+            <label class="control-label">Electron Speed</label>
+            <div class="slider-container">
+                <input type="range" id="speed-slider" min="0" max="100" value="50">
+                <span class="value-display" id="speed-value">50%</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label class="control-label">Electron Count</label>
+            <div class="slider-container">
+                <input type="range" id="count-slider" min="10" max="200" value="75">
+                <span class="value-display" id="count-value">75</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label class="control-label">Lattice Density</label>
+            <div class="slider-container">
+                <input type="range" id="density-slider" min="5" max="30" value="15">
+                <span class="value-display" id="density-value">15</span>
+            </div>
+        </div>
+        
+        <div class="control-group toggle">
+            <label class="control-label">Show Trails</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="trails-toggle" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div class="button-group">
+            <button id="reset-btn">Reset Simulation</button>
+            <button id="presets-btn">Apply Presets</button>
+        </div>
+    </div>
+    
+    <div class="info-panel">
+        <h2>About Electron Movement in Metals</h2>
+        <p>In metallic bonding, atoms release some of their electrons to be shared among all atoms in the structure. These "delocalized" electrons move freely throughout the metal lattice.</p>
+        <p>This simulation shows:</p>
+        <p>- Metal atoms (gray spheres) in a crystal lattice</p>
+        <p>- Delocalized electrons (blue spheres) moving freely</p>
+        <p>- Electron paths showing their random movement</p>
+        
+        <div class="legend">
+            <div class="legend-color" style="background-color: #78909C;"></div>
+            <div class="legend-text">Metal Atoms</div>
+        </div>
+        <div class="legend">
+            <div class="legend-color" style="background-color: #4FC3F7;"></div>
+            <div class="legend-text">Free Electrons</div>
+        </div>
+    </div>
+
+    <script>
+        // Main Three.js code
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hide loading screen
+            const loading = document.querySelector('.loading');
+            
+            // Initialize Three.js scene
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+            
+            // Initialize camera
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+            camera.position.y = 15;
+            camera.position.x = 15;
+            
+            // Initialize renderer
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Add orbit controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            const pointLight = new THREE.PointLight(0x4fc3f7, 1, 100);
+            pointLight.position.set(10, 10, 10);
+            scene.add(pointLight);
+            
+            // Create simulation objects
+            const atoms = [];
+            const electrons = [];
+            const electronTrails = [];
+            
+            // Create metal lattice
+            function createLattice(density = 15) {
+                // Clear existing atoms
+                atoms.forEach(atom => scene.remove(atom));
+                atoms.length = 0;
+                
+                const atomGeometry = new THREE.SphereGeometry(0.8, 32, 32);
+                const atomMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x78909C,
+                    shininess: 100
+                });
+                
+                // Create a cubic lattice
+                for (let x = -density; x <= density; x += 2) {
+                    for (let y = -density; y <= density; y += 2) {
+                        for (let z = -density; z <= density; z += 2) {
+                            const atom = new THREE.Mesh(atomGeometry, atomMaterial);
+                            atom.position.set(x, y, z);
+                            scene.add(atom);
+                            atoms.push(atom);
+                        }
+                    }
+                }
+            }
+            
+            // Create electrons
+            function createElectrons(count = 75) {
+                // Clear existing electrons and trails
+                electrons.forEach(electron => scene.remove(electron.mesh));
+                electronTrails.forEach(trail => scene.remove(trail));
+                electrons.length = 0;
+                electronTrails.length = 0;
+                
+                const electronGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+                const electronMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x4FC3F7,
+                    emissive: 0x0a43a4,
+                    shininess: 100
+                });
+                
+                // Create trail material
+                const trailMaterial = new THREE.LineBasicMaterial({
+                    color: 0x4FC3F7,
+                    transparent: true,
+                    opacity: 0.5
+                });
+                
+                for (let i = 0; i < count; i++) {
+                    const electronMesh = new THREE.Mesh(electronGeometry, electronMaterial);
+                    
+                    // Random position within the lattice
+                    const x = (Math.random() - 0.5) * 30;
+                    const y = (Math.random() - 0.5) * 30;
+                    const z = (Math.random() - 0.5) * 30;
+                    electronMesh.position.set(x, y, z);
+                    
+                    // Random velocity
+                    const velocity = new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.2,
+                        (Math.random() - 0.5) * 0.2,
+                        (Math.random() - 0.5) * 0.2
+                    );
+                    
+                    // Create trail
+                    const trailGeometry = new THREE.BufferGeometry();
+                    const trailPositions = new Float32Array(300 * 3); // 100 points * 3 coordinates
+                    trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+                    const trail = new THREE.Line(trailGeometry, trailMaterial);
+                    
+                    scene.add(electronMesh);
+                    scene.add(trail);
+                    
+                    electrons.push({
+                        mesh: electronMesh,
+                        velocity: velocity,
+                        trail: trail,
+                        trailIndex: 0,
+                        trailPositions: new Array(100).fill().map(() => new THREE.Vector3(x, y, z))
+                    });
+                    electronTrails.push(trail);
+                }
+            }
+            
+            // Initialize simulation
+            createLattice(15);
+            createElectrons(75);
+            
+            // Handle UI interactions
+            const speedSlider = document.getElementById('speed-slider');
+            const speedValue = document.getElementById('speed-value');
+            const countSlider = document.getElementById('count-slider');
+            const countValue = document.getElementById('count-value');
+            const densitySlider = document.getElementById('density-slider');
+            const densityValue = document.getElementById('density-value');
+            const trailsToggle = document.getElementById('trails-toggle');
+            const resetBtn = document.getElementById('reset-btn');
+            const presetsBtn = document.getElementById('presets-btn');
+            
+            speedSlider.addEventListener('input', () => {
+                const value = speedSlider.value;
+                speedValue.textContent = `${value}%`;
+            });
+            
+            countSlider.addEventListener('input', () => {
+                const value = countSlider.value;
+                countValue.textContent = value;
+                createElectrons(parseInt(value));
+            });
+            
+            densitySlider.addEventListener('input', () => {
+                const value = densitySlider.value;
+                densityValue.textContent = value;
+                createLattice(parseInt(value));
+            });
+            
+            resetBtn.addEventListener('click', () => {
+                createLattice(parseInt(densitySlider.value));
+                createElectrons(parseInt(countSlider.value));
+            });
+            
+            presetsBtn.addEventListener('click', () => {
+                speedSlider.value = 50;
+                speedValue.textContent = '50%';
+                countSlider.value = 75;
+                countValue.textContent = '75';
+                densitySlider.value = 15;
+                densityValue.textContent = '15';
+                trailsToggle.checked = true;
+                
+                createLattice(15);
+                createElectrons(75);
+            });
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Update electrons
+                const speedFactor = speedSlider.value / 50;
+                
+                electrons.forEach(electron => {
+                    // Update position
+                    electron.mesh.position.x += electron.velocity.x * speedFactor;
+                    electron.mesh.position.y += electron.velocity.y * speedFactor;
+                    electron.mesh.position.z += electron.velocity.z * speedFactor;
+                    
+                    // Bounce off boundaries
+                    const boundary = 25;
+                    if (Math.abs(electron.mesh.position.x) > boundary) electron.velocity.x *= -1;
+                    if (Math.abs(electron.mesh.position.y) > boundary) electron.velocity.y *= -1;
+                    if (Math.abs(electron.mesh.position.z) > boundary) electron.velocity.z *= -1;
+                    
+                    // Update trail
+                    if (trailsToggle.checked) {
+                        electron.trailPositions[electron.trailIndex].copy(electron.mesh.position);
+                        electron.trailIndex = (electron.trailIndex + 1) % electron.trailPositions.length;
+                        
+                        const positions = electron.trail.geometry.attributes.position.array;
+                        for (let i = 0; i < electron.trailPositions.length; i++) {
+                            const index = (electron.trailIndex + i) % electron.trailPositions.length;
+                            positions[i * 3] = electron.trailPositions[index].x;
+                            positions[i * 3 + 1] = electron.trailPositions[index].y;
+                            positions[i * 3 + 2] = electron.trailPositions[index].z;
+                        }
+                        electron.trail.geometry.attributes.position.needsUpdate = true;
+                    }
+                    
+                    // Make electron visible if trails are enabled
+                    electron.trail.visible = trailsToggle.checked;
+                });
+                
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Start animation
+            animate();
+            
+            // Hide loading screen with a delay
+            setTimeout(() => {
+                loading.style.opacity = '0';
+                setTimeout(() => {
+                    loading.style.display = 'none';
+                }, 500);
+            }, 1500);
+        });
+    </script>
+</body>
+</html>

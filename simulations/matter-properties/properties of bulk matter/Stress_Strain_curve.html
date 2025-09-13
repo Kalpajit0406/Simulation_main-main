@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<script>
+    // Update slider and input together
+    function linkSliderInput(sliderId, inputId, min, max) {
+        const slider = document.getElementById(sliderId);
+        const input = document.getElementById(inputId);
+        slider.addEventListener('input', () => {
+            input.value = slider.value;
+        });
+        input.addEventListener('input', () => {
+            let v = parseFloat(input.value);
+            if (isNaN(v)) v = slider.min;
+            v = Math.max(min, Math.min(max, v));
+            slider.value = v;
+            input.value = v;
+            slider.dispatchEvent(new Event('input')); // trigger update
+        });
+    }
+    window.addEventListener('DOMContentLoaded', () => {
+        linkSliderInput('youngsModulus', 'youngsModulusInput', 10, 300);
+        linkSliderInput('yieldStrength', 'yieldStrengthInput', 100, 1000);
+        linkSliderInput('ultimateStrength', 'ultimateStrengthInput', 200, 1500);
+        linkSliderInput('fractureStrain', 'fractureStrainInput', 5, 50);
+    });
+</script>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Stress-Strain Curve Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f9f9f9;
+        }
+        #controls {
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #eee;
+            max-width: 500px;
+        }
+        label {
+            display: inline-block;
+            width: 180px;
+        }
+        input[type="range"] {
+            width: 200px;
+        }
+        input[type="number"] {
+            width: 60px;
+            margin-left: 8px;
+            margin-right: 8px;
+        }
+        #canvas-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 420px;
+            transition: box-shadow 0.2s;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h2>Interactive Stress-Strain Curve Simulator</h2>
+    <div id="controls">
+        <div>
+            <label for="youngsModulus">Young's Modulus (GPa):</label>
+            <input type="range" id="youngsModulus" min="10" max="300" value="200">
+            <input type="number" id="youngsModulusInput" min="10" max="300" value="200">
+            <span id="youngsModulusVal">200</span>
+        </div>
+        <div>
+            <label for="yieldStrength">Yield Strength (MPa):</label>
+            <input type="range" id="yieldStrength" min="100" max="1000" value="400">
+            <input type="number" id="yieldStrengthInput" min="100" max="1000" value="400">
+            <span id="yieldStrengthVal">400</span>
+        </div>
+        <div>
+            <label for="ultimateStrength">Ultimate Strength (MPa):</label>
+            <input type="range" id="ultimateStrength" min="200" max="1500" value="600">
+            <input type="number" id="ultimateStrengthInput" min="200" max="1500" value="600">
+            <span id="ultimateStrengthVal">600</span>
+        </div>
+        <div>
+            <label for="fractureStrain">Fracture Strain (%):</label>
+            <input type="range" id="fractureStrain" min="5" max="50" value="20">
+            <input type="number" id="fractureStrainInput" min="5" max="50" value="20">
+            <span id="fractureStrainVal">20</span>
+        </div>
+    </div>
+    <div id="canvas-container">
+        <canvas id="curveCanvas" width="600" height="400"></canvas>
+    </div>
+    <script>
+        // Get elements
+        const youngsModulus = document.getElementById('youngsModulus');
+        const yieldStrength = document.getElementById('yieldStrength');
+        const ultimateStrength = document.getElementById('ultimateStrength');
+        const fractureStrain = document.getElementById('fractureStrain');
+        const youngsModulusInput = document.getElementById('youngsModulusInput');
+        const yieldStrengthInput = document.getElementById('yieldStrengthInput');
+        const ultimateStrengthInput = document.getElementById('ultimateStrengthInput');
+        const fractureStrainInput = document.getElementById('fractureStrainInput');
+        const canvas = document.getElementById('curveCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Value displays
+        const youngsModulusVal = document.getElementById('youngsModulusVal');
+        const yieldStrengthVal = document.getElementById('yieldStrengthVal');
+        const ultimateStrengthVal = document.getElementById('ultimateStrengthVal');
+        const fractureStrainVal = document.getElementById('fractureStrainVal');
+
+        function updateValues() {
+            youngsModulusVal.textContent = youngsModulus.value;
+            yieldStrengthVal.textContent = yieldStrength.value;
+            ultimateStrengthVal.textContent = ultimateStrength.value;
+            fractureStrainVal.textContent = fractureStrain.value;
+            // Keep number inputs in sync
+            youngsModulusInput.value = youngsModulus.value;
+            yieldStrengthInput.value = yieldStrength.value;
+            ultimateStrengthInput.value = ultimateStrength.value;
+            fractureStrainInput.value = fractureStrain.value;
+        }
+
+        function drawCurve() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Axes
+            ctx.strokeStyle = "#333";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(60, 350);
+            ctx.lineTo(60, 40);
+            ctx.moveTo(60, 350);
+            ctx.lineTo(570, 350);
+            ctx.stroke();
+
+            // Axis labels
+            ctx.font = "16px Arial";
+            ctx.fillStyle = "#222";
+            ctx.fillText("Strain (%)", 270, 390);
+            ctx.save();
+            ctx.translate(20, 200);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText("Stress (MPa)", 0, 0);
+            ctx.restore();
+
+            // Get parameters
+            const E = parseFloat(youngsModulus.value) * 1000; // GPa to MPa
+            const ys = parseFloat(yieldStrength.value);
+            const us = parseFloat(ultimateStrength.value);
+            const fs = parseFloat(fractureStrain.value);
+
+            // Calculate key points
+            const strainYield = ys / E * 100; // in %
+            const strainUltimate = strainYield + (fs - strainYield) * 0.7;
+            const strainFracture = fs;
+
+            // Draw curve
+            ctx.strokeStyle = "#0074D9";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            // Start at (0,0)
+            let px = 60, py = 350;
+            ctx.moveTo(px, py);
+
+            // Linear (elastic) region to yield
+            let sx = 60 + (strainYield / fs) * 500;
+            let sy = 350 - (ys / us) * 300 * (us > ys ? 1 : ys/us);
+            ctx.lineTo(sx, sy);
+
+            // Plastic region to ultimate
+            let sx2 = 60 + (strainUltimate / fs) * 500;
+            let sy2 = 350 - (us / us) * 300;
+            ctx.bezierCurveTo(
+                sx + (sx2 - sx) * 0.3, sy,
+                sx + (sx2 - sx) * 0.7, sy2,
+                sx2, sy2
+            );
+
+            // Necking to fracture
+            let sx3 = 60 + (strainFracture / fs) * 500;
+            let sy3 = 350 - (us * 0.5 / us) * 300;
+            ctx.bezierCurveTo(
+                sx2 + (sx3 - sx2) * 0.3, sy2,
+                sx2 + (sx3 - sx2) * 0.7, sy3,
+                sx3, sy3
+            );
+
+            ctx.stroke();
+
+            // Draw key points
+            ctx.fillStyle = "#FF4136";
+            // Yield point
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillText("Yield", sx + 8, sy - 8);
+
+            // Ultimate point
+            ctx.beginPath();
+            ctx.arc(sx2, sy2, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillText("Ultimate", sx2 + 8, sy2 - 8);
+
+            // Fracture point
+            ctx.beginPath();
+            ctx.arc(sx3, sy3, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillText("Fracture", sx3 + 8, sy3 - 8);
+
+            // Y-axis ticks
+            ctx.fillStyle = "#333";
+            ctx.font = "12px Arial";
+            for (let i = 0; i <= 5; i++) {
+                let y = 350 - i * 60;
+                let val = Math.round(us * i / 5);
+                ctx.beginPath();
+                ctx.moveTo(55, y);
+                ctx.lineTo(65, y);
+                ctx.stroke();
+                ctx.fillText(val, 30, y + 4);
+            }
+
+            // X-axis ticks
+            for (let i = 0; i <= 5; i++) {
+                let x = 60 + i * 100;
+                let val = Math.round(fs * i / 5);
+                ctx.beginPath();
+                ctx.moveTo(x, 345);
+                ctx.lineTo(x, 355);
+                ctx.stroke();
+                ctx.fillText(val, x - 8, 370);
+            }
+        }
+
+        function update() {
+            updateValues();
+            drawCurve();
+        }
+
+        // Event listeners for sliders
+        youngsModulus.addEventListener('input', update);
+        yieldStrength.addEventListener('input', update);
+        ultimateStrength.addEventListener('input', update);
+        fractureStrain.addEventListener('input', update);
+
+        // Event listeners for number inputs
+        youngsModulusInput.addEventListener('input', function() {
+            youngsModulus.value = this.value;
+            update();
+        });
+        yieldStrengthInput.addEventListener('input', function() {
+            yieldStrength.value = this.value;
+            update();
+        });
+        ultimateStrengthInput.addEventListener('input', function() {
+            ultimateStrength.value = this.value;
+            update();
+        });
+        fractureStrainInput.addEventListener('input', function() {
+            fractureStrain.value = this.value;
+            update();
+        });
+
+        // Initial draw
+        update();
+    </script>
+</body>
+</html>

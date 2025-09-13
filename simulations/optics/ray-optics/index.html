@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ray Optics Simulator</title>
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #f5f7fa;
+      color: #222;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+    header {
+      padding: 18px 40px 0 40px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.2em;
+      color: #1976d2;
+    }
+    .subtitle {
+      color: #607d8b;
+      font-size: 1.2em;
+      margin-bottom: 0;
+    }
+    .main-flex {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      min-height: 0;
+      min-width: 0;
+    }
+    .sim-panel {
+      flex: 2.5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      min-height: 0;
+      background: #fff;
+      border-radius: 18px 0 0 18px;
+      margin: 24px 0 24px 48px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      position: relative;
+    }
+    #simCanvas {
+      background: linear-gradient(to top, #e3f2fd 60%, #fff 100%);
+      border-radius: 18px;
+      border: 2px solid #b3e0fc;
+      box-shadow: 0 2px 12px #b3e0fc33;
+      display: block;
+      margin: 0 auto;
+      width: 1100px;
+      height: 650px;
+      touch-action: none;
+    }
+    .side-panel {
+      flex: 1;
+      min-width: 340px;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 0 18px 18px 0;
+      box-shadow: 2px 0 16px #e0e0e0;
+      padding: 32px 24px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: stretch;
+      z-index: 2;
+      margin: 24px 48px 24px 0;
+    }
+    .controls {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 18px 12px 12px 12px;
+      margin-bottom: 18px;
+    }
+    .control-group {
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+    }
+    label {
+      display: inline-block;
+      width: 120px;
+      font-weight: 500;
+      font-size: 1.1em;
+    }
+    input[type="number"], select {
+      width: 80px;
+      font-size: 1.1em;
+      margin-left: 8px;
+      border-radius: 4px;
+      border: 1px solid #b3e0fc;
+      padding: 2px 6px;
+    }
+    input[type="range"] {
+      width: 100px;
+      margin-left: 8px;
+      margin-right: 8px;
+    }
+    button {
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1.1em;
+      margin-right: 10px;
+      transition: background-color 0.3s;
+    }
+    button:hover:not(:disabled) {
+      background-color: #1565c0;
+    }
+    .object-list {
+      margin-top: 10px;
+      margin-bottom: 10px;
+      font-size: 1.1em;
+    }
+    .object-list span {
+      display: inline-block;
+      margin-right: 10px;
+      margin-bottom: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #e3f2fd;
+      cursor: pointer;
+    }
+    .object-list span.selected {
+      background: #1976d2;
+      color: #fff;
+    }
+    .legend {
+      margin-top: 12px;
+      font-size: 1.1em;
+    }
+    .legend-item {
+      margin-right: 24px;
+    }
+    .legend-color {
+      display: inline-block;
+      width: 18px;
+      height: 8px;
+      border-radius: 4px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .ray-color { background: #e67e22; }
+    .lens-color { background: #1976d2; }
+    .mirror-color { background: #888; }
+    .axis-color { background: #aaa; }
+    .edit-panel {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 12px 12px 8px 12px;
+      margin-bottom: 18px;
+      margin-top: 10px;
+      font-size: 1.1em;
+    }
+    .edit-panel label {
+      width: 90px;
+    }
+    .edit-panel input[type="number"] {
+      width: 60px;
+    }
+    .edit-panel input[type="range"] {
+      width: 80px;
+    }
+    @media (max-width: 1200px) {
+      .main-flex {
+        flex-direction: column;
+      }
+      .sim-panel, .side-panel {
+        margin: 12px 0;
+        border-radius: 18px;
+      }
+      .side-panel {
+        max-width: 100vw;
+        min-width: 0;
+      }
+      #simCanvas {
+        width: 98vw;
+        height: 60vw;
+        min-height: 300px;
+        min-width: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ray Optics Simulator</h1>
+    <p class="subtitle">Explore lenses, mirrors, and ray tracing interactively</p>
+  </header>
+  <main class="main-flex">
+    <section class="sim-panel">
+      <canvas id="simCanvas" width="1100" height="650"></canvas>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-color ray-color"></span>Ray</span>
+        <span class="legend-item"><span class="legend-color lens-color"></span>Lens</span>
+        <span class="legend-item"><span class="legend-color mirror-color"></span>Mirror</span>
+        <span class="legend-item"><span class="legend-color axis-color"></span>Optical Axis</span>
+      </div>
+    </section>
+    <aside class="side-panel">
+      <div class="controls">
+        <div class="control-group">
+          <label for="addType">Add:</label>
+          <select id="addType">
+            <option value="ray">Ray</option>
+            <option value="mirror">Mirror</option>
+          </select>
+          <button id="addBtn">Add</button>
+        </div>
+        <div class="control-group">
+          <label>Lenses:</label>
+          <select id="lensType">
+            <option value="convex">Convex Lens</option>
+            <option value="concave">Concave Lens</option>
+            <option value="plano">Plano (Flat) Lens</option>
+          </select>
+          <button id="addLensBtn">Add Lens</button>
+        </div>
+        <div class="control-group">
+          <label for="selectedObj">Selected:</label>
+          <span id="selectedObjLabel">None</span>
+          <button id="deleteBtn" disabled>Delete</button>
+        </div>
+        <div class="object-list" id="objectList"></div>
+        <div class="control-group">
+          <button id="resetBtn">Reset</button>
+        </div>
+      </div>
+      <div id="editPanel" class="edit-panel" style="display:none"></div>
+      <div style="margin-top:18px;font-size:1.1em;">
+        <b>Instructions:</b>
+        <ul>
+          <li>Drag rays, lenses, and mirrors with the mouse.</li>
+          <li>Rotate lenses/mirrors by dragging the rotation handle or using the slider/number.</li>
+          <li>Click to select, then delete or edit properties.</li>
+          <li>Rays show real-time refraction/reflection.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+  <script>
+    // --- Ray Optics Simulation Core ---
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width, H = canvas.height;
+
+    // --- Data Structures ---
+    let objects = [];
+    let selected = null;
+    let dragOffset = {x:0, y:0};
+    let dragging = false;
+    let rotating = false;
+    let rotateStartAngle = 0;
+    let rotateObjStart = 0;
+
+    // --- Object Types ---
+    function makeRay(x, y, angle=0) {
+      return {
+        type: 'ray',
+        x, y,
+        angle,
+        color: '#e67e22',
+        id: Math.random().toString(36).slice(2)
+      };
+    }
+    function makeLens(x, y, focal=120, kind='convex', angle=0) {
+      return {
+        type: 'lens',
+        x, y,
+        focal,
+        kind, // 'convex' or 'concave'
+        angle,
+        color: '#1976d2',
+        id: Math.random().toString(36).slice(2)
+      };
+    }
+    function makeMirror(x, y, kind='plane', angle=0) {
+      return {
+        type: 'mirror',
+        x, y,
+        kind, // 'plane', 'concave', 'convex'
+        angle,
+        color: '#888',
+        id: Math.random().toString(36).slice(2)
+      };
+    }
+
+    // --- UI Controls ---
+    function updateObjectList() {
+      const list = document.getElementById('objectList');
+      list.innerHTML = '';
+      objects.forEach(obj => {
+        const span = document.createElement('span');
+        span.textContent = obj.type.charAt(0).toUpperCase() + obj.type.slice(1);
+        if (selected && selected.id === obj.id) span.classList.add('selected');
+        span.onclick = () => { selected = obj; updateUI(); };
+        list.appendChild(span);
+      });
+    }
+    function updateEditPanel() {
+      const panel = document.getElementById('editPanel');
+      if (!selected) { panel.style.display = "none"; panel.innerHTML = ""; return; }
+      let html = "";
+      if (selected.type === 'ray') {
+        html += `<label>X:</label><input type="number" id="editX" value="${selected.x}" step="1">
+                 <label>Y:</label><input type="number" id="editY" value="${selected.y}" step="1"><br>
+                 <label>Angle:</label>
+                 <input type="range" id="editAngle" min="-180" max="180" value="${(selected.angle*180/Math.PI).toFixed(1)}">
+                 <input type="number" id="editAngleNum" min="-180" max="180" value="${(selected.angle*180/Math.PI).toFixed(1)}">°`;
+      }
+      if (selected.type === 'lens') {
+        html += `<label>X:</label><input type="number" id="editX" value="${selected.x}" step="1">
+                 <label>Y:</label><input type="number" id="editY" value="${selected.y}" step="1"><br>
+                 <label>Focal:</label>
+                 <input type="number" id="editFocal" value="${selected.focal}" step="1">
+                 <label>Type:</label>
+                 <select id="editKind">
+                   <option value="convex"${selected.kind==='convex'?' selected':''}>Convex</option>
+                   <option value="concave"${selected.kind==='concave'?' selected':''}>Concave</option>
+                 </select><br>
+                 <label>Angle:</label>
+                 <input type="range" id="editAngle" min="-90" max="90" value="${(selected.angle*180/Math.PI).toFixed(1)}">
+                 <input type="number" id="editAngleNum" min="-90" max="90" value="${(selected.angle*180/Math.PI).toFixed(1)}">°`;
+      }
+      if (selected.type === 'mirror') {
+        html += `<label>X:</label><input type="number" id="editX" value="${selected.x}" step="1">
+                 <label>Y:</label><input type="number" id="editY" value="${selected.y}" step="1"><br>
+                 <label>Type:</label>
+                 <select id="editKind">
+                   <option value="plane"${selected.kind==='plane'?' selected':''}>Plane</option>
+                 </select><br>
+                 <label>Angle:</label>
+                 <input type="range" id="editAngle" min="-90" max="90" value="${(selected.angle*180/Math.PI).toFixed(1)}">
+                 <input type="number" id="editAngleNum" min="-90" max="90" value="${(selected.angle*180/Math.PI).toFixed(1)}">°`;
+      }
+      panel.innerHTML = html;
+      panel.style.display = "block";
+      // Bind events
+      if (selected.type === 'ray' || selected.type === 'lens' || selected.type === 'mirror') {
+        panel.querySelector('#editX').oninput = e => { selected.x = parseFloat(e.target.value); };
+        panel.querySelector('#editY').oninput = e => { selected.y = parseFloat(e.target.value); };
+        panel.querySelector('#editAngle').oninput = e => {
+          selected.angle = parseFloat(e.target.value) * Math.PI/180;
+          panel.querySelector('#editAngleNum').value = e.target.value;
+        };
+        panel.querySelector('#editAngleNum').oninput = e => {
+          selected.angle = parseFloat(e.target.value) * Math.PI/180;
+          panel.querySelector('#editAngle').value = e.target.value;
+        };
+      }
+      if (selected.type === 'lens') {
+        panel.querySelector('#editFocal').oninput = e => { selected.focal = parseFloat(e.target.value); };
+        panel.querySelector('#editKind').oninput = e => { selected.kind = e.target.value; };
+      }
+      if (selected.type === 'mirror') {
+        panel.querySelector('#editKind').oninput = e => { selected.kind = e.target.value; };
+      }
+    }
+    function updateUI() {
+      updateObjectList();
+      updateEditPanel();
+      document.getElementById('selectedObjLabel').textContent = selected ? (selected.type.charAt(0).toUpperCase() + selected.type.slice(1)) : 'None';
+      document.getElementById('deleteBtn').disabled = !selected;
+    }
+    document.getElementById('addBtn').onclick = () => {
+      const type = document.getElementById('addType').value;
+      if (type === 'ray') objects.push(makeRay(200, H/2, 0));
+      if (type === 'mirror') objects.push(makeMirror(W/2+200, H/2, 'plane', 0));
+      updateUI();
+    };
+    document.getElementById('deleteBtn').onclick = () => {
+      if (!selected) return;
+      objects = objects.filter(o => o.id !== selected.id);
+      selected = null;
+      updateUI();
+    };
+    document.getElementById('resetBtn').onclick = () => {
+      objects = [
+        makeRay(200, H/2, 0),
+        makeLens(W/2, H/2, 120, 'convex', 0),
+        makeMirror(W/2+200, H/2, 'plane', 0)
+      ];
+      selected = null;
+      updateUI();
+    };
+
+    // --- Add Lens Section ---
+    document.getElementById('addLensBtn').onclick = () => {
+      const lensType = document.getElementById('lensType').value;
+      let kind = lensType;
+      let focal = 120;
+      if (kind === 'plano') kind = 'plano';
+      objects.push(makeLens(W/2, H/2, focal, kind, 0));
+      updateUI();
+    };
+
+    // --- Mouse Interaction ---
+    canvas.addEventListener('mousedown', e => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      for (let obj of objects) {
+        // Rotation handle
+        if ((obj.type === 'lens' || obj.type === 'mirror')) {
+          let rx = obj.x + 60 * Math.cos(obj.angle + Math.PI/2);
+          let ry = obj.y + 60 * Math.sin(obj.angle + Math.PI/2);
+          if (Math.hypot(mx - rx, my - ry) < 16) {
+            selected = obj; rotating = true;
+            rotateStartAngle = Math.atan2(my - obj.y, mx - obj.x);
+            rotateObjStart = obj.angle;
+            updateUI(); return;
+          }
+        }
+        // Drag main body
+        if (obj.type === 'ray' && Math.hypot(mx-obj.x, my-obj.y)<16) {
+          selected = obj; dragging = true; dragOffset.x = mx-obj.x; dragOffset.y = my-obj.y;
+          updateUI(); return;
+        }
+        if (obj.type === 'lens') {
+          // Check if inside lens ellipse
+          let dx = mx - obj.x, dy = my - obj.y;
+          let dxr = dx*Math.cos(-obj.angle) - dy*Math.sin(-obj.angle);
+          let dyr = dx*Math.sin(-obj.angle) + dy*Math.cos(-obj.angle);
+          if (Math.abs(dxr)<18 && Math.abs(dyr)<60) {
+            selected = obj; dragging = true; dragOffset.x = dxr; dragOffset.y = dyr;
+            updateUI(); return;
+          }
+        }
+        if (obj.type === 'mirror') {
+          // Check if near mirror line
+          let dx = mx - obj.x, dy = my - obj.y;
+          let dxr = dx*Math.cos(-obj.angle) - dy*Math.sin(-obj.angle);
+          let dyr = dx*Math.sin(-obj.angle) + dy*Math.cos(-obj.angle);
+          if (Math.abs(dxr)<40 && Math.abs(dyr)<10) {
+            selected = obj; dragging = true; dragOffset.x = dxr; dragOffset.y = dyr;
+            updateUI(); return;
+          }
+        }
+      }
+      selected = null; updateUI();
+    });
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      if (rotating && selected && (selected.type === 'lens' || selected.type === 'mirror')) {
+        let ang = Math.atan2(my - selected.y, mx - selected.x);
+        selected.angle = rotateObjStart + (ang - rotateStartAngle);
+        return;
+      }
+      if (!dragging || !selected) return;
+      if (selected.type === 'ray') {
+        selected.x = mx - dragOffset.x;
+        selected.y = my - dragOffset.y;
+      } else if (selected.type === 'lens' || selected.type === 'mirror') {
+        // Drag in rotated frame
+        let dx = mx - selected.x, dy = my - selected.y;
+        let dxr = dx*Math.cos(-selected.angle) - dy*Math.sin(-selected.angle);
+        let dyr = dx*Math.sin(-selected.angle) + dy*Math.cos(-selected.angle);
+        selected.x = mx - dragOffset.x*Math.cos(selected.angle) + dragOffset.y*Math.sin(selected.angle);
+        selected.y = my - dragOffset.x*Math.sin(selected.angle) - dragOffset.y*Math.cos(selected.angle);
+      }
+    });
+    window.addEventListener('mouseup', ()=>{ dragging=false; rotating=false; });
+
+    // --- Ray Tracing (Allow multiple bounces per mirror, like ray reconstruction) ---
+    function drawRay(ray) {
+      ctx.save();
+      ctx.strokeStyle = ray.color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(ray.x, ray.y, 8, 0, 2 * Math.PI);
+      ctx.fillStyle = ray.color;
+      ctx.globalAlpha = 0.7;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.moveTo(ray.x, ray.y);
+
+      // Track the last hit object to avoid infinite self-intersection at the same spot
+      let px = ray.x, py = ray.y, angle = ray.angle;
+      let maxSteps = 16, step = 0;
+      let hit = false;
+      let lastObj = null;
+      let epsilon = 1e-3; // Small offset to avoid stuck on the same surface
+
+      while (step++ < maxSteps && !hit) {
+        let dx = Math.cos(angle), dy = Math.sin(angle);
+        let minDist = 2000, hitObj = null, hx = 0, hy = 0, newAngle = angle;
+        for (let obj of objects) {
+          if (obj.id === ray.id) continue;
+          // Prevent immediate self-hit at the same spot (but allow multiple bounces)
+          if (obj === lastObj) continue;
+
+          // --- LENS INTERSECTION ---
+          if (obj.type === 'lens') {
+            let tx = px - obj.x, ty = py - obj.y;
+            let cosA = Math.cos(-obj.angle), sinA = Math.sin(-obj.angle);
+            let x0 = tx * cosA - ty * sinA, y0 = tx * sinA + ty * cosA;
+            let dxr = dx * cosA - dy * sinA, dyr = dx * sinA + dy * cosA;
+
+            if (obj.kind === 'plano') {
+              if (Math.abs(dxr) > 1e-6) {
+                let t = -x0 / dxr;
+                let yint = y0 + t * dyr;
+                if (t > 8 && Math.abs(yint) < 60 && t < minDist) {
+                  minDist = t;
+                  let rx = obj.x + (x0 + t * dxr) * cosA + (y0 + t * dyr) * -sinA;
+                  let ry = obj.y + (x0 + t * dxr) * sinA + (y0 + t * dyr) * cosA;
+                  hx = rx; hy = ry;
+                  newAngle = angle;
+                  hitObj = obj;
+                }
+              }
+            } else {
+              if (Math.abs(dxr) > 1e-6) {
+                let t = -x0 / dxr;
+                let yint = y0 + t * dyr;
+                if (t > 8 && Math.abs(yint) < 60 && t < minDist) {
+                  minDist = t;
+                  let rx = obj.x + (x0 + t * dxr) * cosA + (y0 + t * dyr) * -sinA;
+                  let ry = obj.y + (x0 + t * dxr) * sinA + (y0 + t * dyr) * cosA;
+                  hx = rx; hy = ry;
+                  let lensAxis = obj.angle;
+                  let s = ((px - obj.x) * Math.cos(lensAxis) + (py - obj.y) * Math.sin(lensAxis)) / Math.cos(angle - lensAxis);
+                  let f = obj.focal * (obj.kind === 'convex' ? 1 : -1);
+                  if (obj.kind === 'concave') {
+                    let s2 = 1 / (1 / f - 1 / s);
+                    let imgX = obj.x + s2 * Math.cos(lensAxis);
+                    let imgY = obj.y + s2 * Math.sin(lensAxis);
+                    newAngle = Math.atan2(hy - imgY, hx - imgX);
+                  } else {
+                    if (Math.abs(1 / f - 1 / s) > 1e-6) {
+                      let s2 = 1 / (1 / f - 1 / s);
+                      let imgX = obj.x + s2 * Math.cos(lensAxis);
+                      let imgY = obj.y + s2 * Math.sin(lensAxis);
+                      newAngle = Math.atan2(imgY - hy, imgX - hx);
+                    } else {
+                      newAngle = angle;
+                    }
+                  }
+                  hitObj = obj;
+                }
+              }
+            }
+          }
+
+          // --- MIRROR INTERSECTION (allow multiple bounces per mirror) ---
+          if (obj.type === 'mirror') {
+            let tx = px - obj.x, ty = py - obj.y;
+            let cosA = Math.cos(-obj.angle), sinA = Math.sin(-obj.angle);
+            let x0 = tx * cosA - ty * sinA, y0 = tx * sinA + ty * cosA;
+            let dxr = dx * cosA - dy * sinA, dyr = dx * sinA + dy * cosA;
+            if (Math.abs(dxr) > 1e-6) {
+              let t = -x0 / dxr;
+              let yint = y0 + t * dyr;
+              if (t > 8 && Math.abs(yint) < 40 && t < minDist) {
+                minDist = t;
+                let rx = obj.x + (x0 + t * dxr) * cosA + (y0 + t * dyr) * -sinA;
+                let ry = obj.y + (x0 + t * dxr) * sinA + (y0 + t * dyr) * cosA;
+                hx = rx; hy = ry;
+                let normal = [Math.cos(obj.angle + Math.PI / 2), Math.sin(obj.angle + Math.PI / 2)];
+                let d = [Math.cos(angle), Math.sin(angle)];
+                let dot = d[0] * normal[0] + d[1] * normal[1];
+                let r = [d[0] - 2 * dot * normal[0], d[1] - 2 * dot * normal[1]];
+                newAngle = Math.atan2(r[1], r[0]);
+                hitObj = obj;
+              }
+            }
+          }
+        }
+        if (minDist < 2000) {
+          ctx.lineTo(hx, hy);
+          // Offset slightly along new direction to avoid stuck on the same surface
+          px = hx + Math.cos(newAngle) * epsilon;
+          py = hy + Math.sin(newAngle) * epsilon;
+          angle = newAngle;
+          lastObj = hitObj;
+        } else {
+          ctx.lineTo(px + dx * 2000, py + dy * 2000);
+          hit = true;
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+    function drawLens(lens) {
+      ctx.save();
+      ctx.translate(lens.x, lens.y);
+      ctx.rotate(lens.angle);
+      if (lens.kind === 'plano') {
+        // Draw as a rectangle (flat lens)
+        ctx.beginPath();
+        ctx.rect(-18, -60, 36, 120);
+        ctx.fillStyle = "rgba(25, 118, 210, 0.13)";
+        ctx.fill();
+        ctx.strokeStyle = lens.color;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        // Rotation handle
+        ctx.beginPath();
+        ctx.arc(0, 60, 10, 0, 2*Math.PI);
+        ctx.fillStyle = "#1976d2";
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = "bold 1em Segoe UI";
+        ctx.fillStyle = lens.color;
+        ctx.fillText("Plano", -30, -70);
+        ctx.fillText("f="+lens.focal+"px", -30, 80);
+      } else {
+        // Draw ellipse for convex/concave
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 18, 60, 0, 0, 2*Math.PI);
+        ctx.fillStyle = "rgba(25, 118, 210, 0.13)";
+        ctx.fill();
+        ctx.strokeStyle = lens.color;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        // Rotation handle
+        ctx.beginPath();
+        ctx.arc(0, 60, 10, 0, 2*Math.PI);
+        ctx.fillStyle = "#1976d2";
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = "bold 1em Segoe UI";
+        ctx.fillStyle = lens.color;
+        ctx.fillText(lens.kind==='convex'?'Convex':'Concave', -30, -70);
+        ctx.fillText("f="+lens.focal+"px", -30, 80);
+      }
+      ctx.restore();
+    }
+    function drawMirror(mirror) {
+      ctx.save();
+      ctx.translate(mirror.x, mirror.y);
+      ctx.rotate(mirror.angle);
+
+      // Draw mirror body: a thick, metallic gradient line with end caps
+      let grad = ctx.createLinearGradient(-40, 0, 40, 0);
+      grad.addColorStop(0, "#bbb");
+      grad.addColorStop(0.5, "#fff");
+      grad.addColorStop(1, "#bbb");
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 12;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-40, 0);
+      ctx.lineTo(40, 0);
+      ctx.stroke();
+
+      // Draw mirror edge (reflective surface)
+      ctx.strokeStyle = "#1976d2";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-40, 0);
+      ctx.lineTo(40, 0);
+      ctx.stroke();
+
+      // Draw normal direction indicator (small arrow)
+      ctx.save();
+      ctx.strokeStyle = "#888";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -30);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -30);
+      ctx.lineTo(-5, -22);
+      ctx.lineTo(5, -22);
+      ctx.closePath();
+      ctx.fillStyle = "#888";
+      ctx.fill();
+      ctx.restore();
+
+      // Draw rotation handle
+      ctx.beginPath();
+      ctx.arc(0, 60, 10, 0, 2 * Math.PI);
+      ctx.fillStyle = "#888";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Label
+      ctx.font = "bold 1em Segoe UI";
+      ctx.fillStyle = mirror.color;
+      ctx.fillText(mirror.kind.charAt(0).toUpperCase() + mirror.kind.slice(1), -30, -15);
+
+      ctx.restore();
+    }
+
+    // --- Main Draw Loop ---
+    function draw() {
+      ctx.clearRect(0,0,W,H);
+      // Draw axis
+      ctx.save();
+      ctx.strokeStyle = "#aaa";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8,8]);
+      ctx.beginPath();
+      ctx.moveTo(0, H/2);
+      ctx.lineTo(W, H/2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+      // Draw objects
+      for (let obj of objects) {
+        if (obj.type==='lens') drawLens(obj);
+        if (obj.type==='mirror') drawMirror(obj);
+      }
+      for (let obj of objects) {
+        if (obj.type==='ray') drawRay(obj);
+      }
+      requestAnimationFrame(draw);
+    }
+
+    // --- Initialization ---
+    objects = [
+      makeRay(200, H/2, 0),
+      makeLens(W/2, H/2, 120, 'convex', 0),
+      makeMirror(W/2+200, H/2, 'plane', 0)
+    ];
+    updateUI();
+    draw();
+  </script>
+</body>
+</html>

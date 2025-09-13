@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Barlow’s Wheel – Three.js Demo</title>
+<style>
+    body { margin:0; overflow:hidden; font-family:Arial,Helvetica,sans-serif; background:#111; color:#eee;}
+    #ui {
+        position:fixed; top:10px; left:10px; padding:12px; background:rgba(0,0,0,0.6);
+        border-radius:6px; max-width:260px;
+    }
+    .row { margin-bottom:10px; }
+    label { display:block; font-size:.85rem; margin-bottom:4px; }
+    input[type=range] { width:100%; }
+    button { padding:6px 10px; margin-right:6px; background:#3498db; border:none;
+        color:#fff; cursor:pointer; border-radius:4px; }
+    button:hover { background:#2980b9; }
+    #info { margin-top:12px; font-size:.85rem; line-height:1.4; }
+</style>
+</head>
+<body>
+<div id="ui">
+    <div class="row">
+        <label>Battery voltage (V) <span id="voltageVal">6</span></label>
+        <input type="range" id="voltage" min="0" max="12" step="0.5" value="6">
+    </div>
+    <div class="row">
+        <label>Magnetic field % <span id="fieldVal">50</span></label>
+        <input type="range" id="field" min="0" max="100" value="50">
+    </div>
+    <div class="row">
+        <label>Circuit resistance (Ω) <span id="resistanceVal">20</span></label>
+        <input type="range" id="resistance" min="1" max="100" value="20">
+    </div>
+    <div class="row">
+        <label>Friction (0‑0.2) <span id="frictionVal">0.05</span></label>
+        <input type="range" id="friction" min="0" max="20" step="1" value="5">
+    </div>
+    <div class="row">
+        <button id="runBtn">Start / Stop</button>
+        <button id="resetBtn">Reset</button>
+    </div>
+    <div id="info">
+        <div>Current: <span id="current">0.00</span> A</div>
+        <div>Force: <span id="force">0.00</span> N</div>
+        <div>Torque: <span id="torque">0.00</span> N·m</div>
+        <div>Speed: <span id="speed">0.00</span> rad / s</div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="wheel.js"></script>
+</body>
+</html>

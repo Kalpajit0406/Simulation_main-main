@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Professional Ohm's Law Simulator</title>
+  <style>
+    :root {
+      --primary-color: #00a8ff;
+      --background-color: #1a1a2e;
+      --surface-color: #22223a;
+      --text-color: #ffffff;
+      --border-color: #333355;
+      --electron-color: #ffd700;
+      --shadow-color: rgba(0, 0, 0, 0.3);
+      --accent-color: #00a8ff;
+      --success-color: #2ecc71;
+      --danger-color: #e74c3c;
+    }
+
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .simulation-container {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      padding: 2rem;
+      gap: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5em;
+      font-weight: 600;
+      color: var(--primary-color);
+      text-shadow: 0 0 10px rgba(0, 168, 255, 0.3);
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 3rem;
+      height: 100%;
+    }
+
+    .controls {
+      background: var(--surface-color);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px var(--shadow-color);
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .control-group {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1.5rem;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+    }
+
+    label {
+      font-size: 1.2em;
+      font-weight: 500;
+      color: var(--text-color);
+      margin-bottom: 1.5rem;
+      display: block;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    input[type="range"] {
+      flex-grow: 1;
+      -webkit-appearance: none;
+      height: 8px;
+      background: var(--border-color);
+      border-radius: 4px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      background: var(--primary-color);
+      border: 3px solid var(--text-color);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    input[type="range"]:hover::-webkit-slider-thumb {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px var(--primary-color);
+    }
+
+    input[type="number"] {
+      width: 100px;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--surface-color);
+      color: var(--text-color);
+      font-size: 1.1em;
+      text-align: center;
+    }
+
+    #circuit-diagram {
+      background: var(--surface-color);
+      border-radius: 20px;
+      width: 100%;
+      height: 100%;
+      box-shadow: 0 8px 32px var(--shadow-color);
+      border: 1px solid var(--border-color);
+    }
+
+    .equation-display {
+      text-align: center;
+      font-size: 2em;
+      padding: 1.5rem;
+      background: var(--surface-color);
+      color: var(--primary-color);
+      border-radius: 16px;
+      font-weight: 600;
+      box-shadow: 0 8px 32px var(--shadow-color);
+      border: 1px solid var(--border-color);
+    }
+
+    #current-value {
+      color: var(--success-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="simulation-container">
+    <h1>Ohm's Law Simulation</h1>
+
+    <div class="main-layout">
+      <div class="controls">
+        <div class="control-group">
+          <label for="voltage-slider">Voltage (V): <span id="voltage-value">9.0</span></label>
+          <div class="input-row">
+            <input type="range" id="voltage-slider" min="0.1" max="20" value="9.0" step="0.1">
+            <input type="number" id="voltage-input" min="0.1" max="20" value="9.0" step="0.1">
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="resistance-slider">Resistance (R): <span id="resistance-value">500</span> Ω</label>
+          <div class="input-row">
+            <input type="range" id="resistance-slider" min="10" max="1000" value="500" step="1">
+            <input type="number" id="resistance-input" min="10" max="1000" value="500" step="1">
+          </div>
+        </div>
+      </div>
+
+      <canvas id="circuit-diagram"></canvas>
+    </div>
+
+    <div class="equation-display">
+      Current (I) = <span id="current-value">0.0180</span> A
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // ------- CSS variable access helper (fixes invalid JS 'var(--x)' usage) -------
+      const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      const COLORS = {
+        text: '#ffffff',
+        electron: '#ffd700',
+        wire: '#4a4a6a',
+        positive: '#e74c3c',
+        negative: '#00a8ff'
+      };
+
+      // --- DOM Elements ---
+      const voltageSlider = document.getElementById('voltage-slider');
+      const voltageInput = document.getElementById('voltage-input');
+      const resistanceSlider = document.getElementById('resistance-slider');
+      const resistanceInput = document.getElementById('resistance-input');
+      const voltageValueSpan = document.getElementById('voltage-value');
+      const resistanceValueSpan = document.getElementById('resistance-value');
+      const currentValueSpan = document.getElementById('current-value');
+      const canvas = document.getElementById('circuit-diagram');
+      const ctx = canvas.getContext('2d');
+
+      // --- Canvas DPI setup + resize handling ---
+      const resizeCanvas = () => {
+        const dpi = window.devicePixelRatio || 1;
+        const { width, height } = canvas.getBoundingClientRect();
+        canvas.width = Math.max(1, Math.floor(width * dpi));
+        canvas.height = Math.max(1, Math.floor(height * dpi));
+        ctx.setTransform(dpi, 0, 0, dpi, 0, 0); // reset & scale
+      };
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // --- Circuit geometry (points in CSS pixels) ---
+      const P = {
+        BL: { x: 100, y: 270 }, // bottom-left (start)
+        BR: { x: 450, y: 270 },
+        TR: { x: 450, y: 50 },
+        TL: { x: 50,  y: 50 },
+        ML: { x: 50,  y: 270 },
+      };
+
+      // Build path segments in traversal order: bottom → right → top → left → short bottom-left
+      const segments = [
+        [P.BL, P.BR], // 1 bottom
+        [P.BR, P.TR], // 2 right
+        [P.TR, P.TL], // 3 top
+        [P.TL, P.ML], // 4 left
+        [P.ML, P.BL], // 5 short bottom-left
+      ].map(([a, b]) => ({
+        a, b,
+        len: Math.hypot(b.x - a.x, b.y - a.y)
+      }));
+      const totalLen = segments.reduce((s, seg) => s + seg.len, 0);
+
+      let electrons = [];
+
+      // --- Event Listeners for Input Synchronization ---
+      const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
+      function syncInputs(source, type) {
+        if (type === 'voltage') {
+          const value = Number(source === 'slider' ? voltageSlider.value : voltageInput.value);
+          const v = clamp(value || 0, 0.1, 20);
+          voltageSlider.value = String(v);
+          voltageInput.value = String(v);
+        } else {
+          const value = Number(source === 'slider' ? resistanceSlider.value : resistanceInput.value);
+          const r = clamp(value || 0, 10, 1000);
+          resistanceSlider.value = String(r);
+          resistanceInput.value = String(r);
+        }
+      }
+
+      voltageSlider.addEventListener('input', () => syncInputs('slider', 'voltage'));
+      voltageInput.addEventListener('input', () => syncInputs('input', 'voltage'));
+      resistanceSlider.addEventListener('input', () => syncInputs('slider', 'resistance'));
+      resistanceInput.addEventListener('input', () => syncInputs('input', 'resistance'));
+
+      // --- Main Simulation Loop ---
+      function simulationLoop() {
+        const voltage = Number(voltageSlider.value);
+        const resistance = Number(resistanceSlider.value);
+        const current = resistance > 0 ? voltage / resistance : 0; // I = V/R
+
+        updateUIDisplay(voltage, resistance, current);
+
+        // Map current → electron count & speed (clamped for aesthetics)
+        const speed = Math.max(0.3, Math.min(25, current * 250));
+        const numElectrons = Math.max(5, Math.min(80, Math.floor(current * 800)));
+
+        if (electrons.length !== numElectrons) createElectrons(numElectrons);
+
+        updateElectrons(speed);
+        drawScene(voltage, resistance);
+
+        requestAnimationFrame(simulationLoop);
+      }
+
+      // --- UI and State Update Functions ---
+      function updateUIDisplay(v, r, i) {
+        // Only the numeric values live in spans; units live in labels / equation strip
+        voltageValueSpan.textContent = v.toFixed(1);
+        resistanceValueSpan.textContent = r.toFixed(0);
+        currentValueSpan.textContent = i.toFixed(4);
+      }
+
+      function createElectrons(count) {
+        electrons = Array.from({ length: count }, (_, i) => ({
+          dist: (totalLen / count) * i
+        }));
+      }
+
+      function updateElectrons(speed) {
+        for (const e of electrons) {
+          e.dist = (e.dist + speed) % totalLen;
+        }
+      }
+
+      // --- Drawing Functions ---
+      function drawScene(voltage, resistance) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawWires();
+        drawBattery(voltage);
+        drawResistor(resistance);
+        drawElectrons();
+      }
+
+      function drawWires() {
+        ctx.strokeStyle = COLORS.wire;
+        ctx.lineWidth = 7;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(P.BL.x, P.BL.y);
+        ctx.lineTo(P.BR.x, P.BR.y);
+        ctx.lineTo(P.TR.x, P.TR.y);
+        ctx.lineTo(P.TL.x, P.TL.y);
+        ctx.lineTo(P.ML.x, P.ML.y);
+        ctx.lineTo(P.BL.x, P.BL.y);
+        ctx.stroke();
+      }
+
+      function drawBattery(voltage) {
+        const x = 50, y = 160;
+        ctx.lineWidth = 5;
+        // Short line (negative)
+        ctx.beginPath();
+        ctx.moveTo(x, y - 15); ctx.lineTo(x, y + 15);
+        ctx.strokeStyle = COLORS.negative;  // for negative terminal
+        ctx.stroke();
+        // Long line (positive)
+        ctx.beginPath();
+        ctx.moveTo(x, y - 25); ctx.lineTo(x, y + 25);
+        ctx.strokeStyle = COLORS.positive;
+        ctx.stroke();
+
+        ctx.font = 'bold 16px Inter, system-ui, sans-serif';
+        ctx.fillStyle = COLORS.text; // fixed from invalid var(--text-color)
+        ctx.textAlign = 'center';
+        ctx.fillText(`${voltage.toFixed(1)}V`, x, y - 40);
+      }
+
+      function drawResistor(resistance) {
+        const x = 275, y = 270;
+        ctx.strokeStyle = '#34495e';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(x - 60, y);
+        for (let i = 0; i < 8; i++) {
+          ctx.lineTo(x - 60 + (i * 15), y + (i % 2 === 0 ? -12 : 12));
+        }
+        ctx.lineTo(x + 60, y);
+        ctx.stroke();
+
+        ctx.font = 'bold 16px Inter, system-ui, sans-serif';
+        ctx.fillStyle = COLORS.text; // fixed from invalid var(--text-color)
+        ctx.textAlign = 'center';
+        ctx.fillText(`${resistance.toFixed(0)}Ω`, x, y + 35);
+      }
+
+      function drawElectrons() {
+        ctx.shadowColor = 'rgba(255, 149, 0, 0.7)';
+        ctx.shadowBlur = 8;
+        for (const e of electrons) {
+          const { x, y } = pointAlongPath(e.dist);
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = COLORS.electron;
+          ctx.fill();
+        }
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+      }
+
+      // Convert distance along polyline → (x,y)
+      function pointAlongPath(d) {
+        let dist = d % totalLen;
+        for (const seg of segments) {
+          if (dist <= seg.len) {
+            const t = seg.len === 0 ? 0 : dist / seg.len; // 0..1
+            return {
+              x: seg.a.x + (seg.b.x - seg.a.x) * t,
+              y: seg.a.y + (seg.b.y - seg.a.y) * t,
+            };
+          }
+          dist -= seg.len;
+        }
+        // Fallback (shouldn't hit)
+        return { x: P.BL.x, y: P.BL.y };
+      }
+
+      // --- Start Simulation ---
+      createElectrons(20);
+      simulationLoop();
+    });
+  </script>
+</body>
+</html>

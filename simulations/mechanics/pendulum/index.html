@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Pendulum Simulation</title>
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #2c3e50;
+            overflow: hidden;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            text-align: left;
+            color: #2c3e50;
+            margin: 18px 0 0 40px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            text-align: left;
+            color: #7f8c8d;
+            margin: 0 0 18px 40px;
+            font-size: 1.3em;
+        }
+        .main-flex {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            gap: 0;
+            height: 0;
+            min-height: 0;
+        }
+        .side-panel {
+            width: 370px;
+            min-width: 320px;
+            max-width: 400px;
+            background: #fff;
+            border-radius: 0 18px 18px 0;
+            box-shadow: 2px 0 16px #e0e0e0;
+            padding: 32px 24px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: stretch;
+            z-index: 2;
+        }
+        .sim-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            min-height: 0;
+            position: relative;
+        }
+        .sim-canvas-container {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+            padding: 0;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #pendulumCanvas {
+            width: 800px !important;
+            height: 600px !important;
+            max-width: 90vw;
+            max-height: 70vh;
+            background: #fff;
+            border-radius: 18px;
+            border: 2px solid #e0e0e0;
+            display: block;
+        }
+        .graph-container {
+            width: 1200px;
+            height: 260px;
+            max-width: 98vw;
+            background: #fff;
+            border-radius: 18px;
+            border: 2px solid #e0e0e0;
+            margin: 0 auto;
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #pendulumGraph {
+            width: 1180px !important;
+            height: 240px !important;
+            display: block;
+        }
+        .controls {
+            margin-bottom: 18px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 18px 12px 12px 12px;
+        }
+        .control-group {
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+        }
+        label {
+            display: inline-block;
+            width: 140px;
+            font-weight: 500;
+            font-size: 1.1em;
+        }
+        input[type="range"] {
+            width: 120px;
+            margin: 0 8px;
+        }
+        input[type="number"] {
+            width: 60px;
+            margin-left: 8px;
+            font-size: 1.1em;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+        button:disabled {
+            background-color: #b3cce6;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background-color: #2980b9;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+            font-size: 1.1em;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .data-table th {
+            background-color: #f8f9fa;
+        }
+        .graph-controls {
+            margin-bottom: 8px;
+            text-align: right;
+            font-size: 1.1em;
+        }
+        @media (max-width: 1200px) {
+            #pendulumCanvas, .graph-container, #pendulumGraph {
+                width: 98vw !important;
+                max-width: 98vw !important;
+            }
+            .side-panel {
+                min-width: 220px;
+                width: 220px;
+                padding: 12px 6px 6px 6px;
+            }
+        }
+        @media (max-width: 900px) {
+            .main-flex {
+                flex-direction: column;
+            }
+            .side-panel {
+                width: 100vw;
+                border-radius: 0 0 18px 18px;
+                box-shadow: 0 2px 16px #e0e0e0;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: flex-start;
+            }
+            .sim-panel {
+                width: 100vw;
+            }
+            #pendulumCanvas, .graph-container, #pendulumGraph {
+                width: 98vw !important;
+                max-width: 98vw !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Pendulum Simulation</h1>
+    <p class="subtitle">Explore the dynamics of a simple pendulum with interactive controls and live graph</p>
+    <div class="main-flex">
+        <div class="sim-panel">
+            <div class="sim-canvas-container">
+                <canvas id="pendulumCanvas" width="800" height="600"></canvas>
+            </div>
+            <!-- Expand the graph area: -->
+            <div class="graph-container" style="width:1200px;max-width:98vw;">
+                <canvas id="pendulumGraph" width="1180" height="240"></canvas>
+            </div>
+        </div>
+        <div class="side-panel">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="pendulumMass">Mass (kg):</label>
+                    <input type="range" id="pendulumMass" min="0.1" max="5" step="0.1" value="1">
+                    <input type="number" id="pendulumMassNum" min="0.1" max="5" step="0.1" value="1">
+                </div>
+                <div class="control-group">
+                    <label for="pendulumLength">Length (m):</label>
+                    <input type="range" id="pendulumLength" min="0.5" max="3" step="0.1" value="1.5">
+                    <input type="number" id="pendulumLengthNum" min="0.5" max="3" step="0.1" value="1.5">
+                </div>
+                <div class="control-group">
+                    <label for="pendulumDamping">Damping:</label>
+                    <input type="range" id="pendulumDamping" min="0" max="0.5" step="0.01" value="0.02">
+                    <input type="number" id="pendulumDampingNum" min="0" max="0.5" step="0.01" value="0.02">
+                </div>
+                <div class="control-group">
+                    <label for="pendulumAngle">Initial Angle (°):</label>
+                    <input type="range" id="pendulumAngle" min="-100" max="100" step="1" value="30">
+                    <input type="number" id="pendulumAngleNum" min="-100" max="100" step="1" value="30">
+                </div>
+                <div style="margin-top:10px;">
+                    <button id="pendulumStartBtn">Start</button>
+                    <button id="pendulumPauseBtn" disabled>Pause</button>
+                    <button id="pendulumResetBtn">Reset</button>
+                </div>
+            </div>
+            <table class="data-table">
+                <tr>
+                    <th>Time (s)</th>
+                    <th>Angle (°)</th>
+                    <th>Angular Velocity (°/s)</th>
+                    <th>Period (s)</th>
+                </tr>
+                <tr>
+                    <td id="pendulumTime">0.00</td>
+                    <td id="pendulumAngleDisp">0.00</td>
+                    <td id="pendulumAngularVelocity">0.00</td>
+                    <td id="pendulumPeriod">0.00</td>
+                </tr>
+            </table>
+            <table class="data-table" style="margin-top:10px;">
+                <tr>
+                    <th>Velocity (m/s)</th>
+                    <th>Acceleration (m/s²)</th>
+                </tr>
+                <tr>
+                    <td id="pendulumVelocity">0.00</td>
+                    <td id="pendulumAcceleration">0.00</td>
+                </tr>
+            </table>
+            <div class="graph-controls" style="margin-top:18px;">
+                <label><input type="checkbox" id="showAngle" checked> Angle</label>
+                <label><input type="checkbox" id="showAngularVelocity" checked> Angular Velocity</label>
+            </div>
+        </div>
+    </div>
+    <script>
+        // --- UI Sync for sliders and numbers ---
+        function linkSliderInput(sliderId, inputId, min, max, step) {
+            const slider = document.getElementById(sliderId);
+            const input = document.getElementById(inputId);
+            slider.addEventListener('input', () => {
+                input.value = slider.value;
+                input.dispatchEvent(new Event('input'));
+            });
+            input.addEventListener('input', () => {
+                let v = parseFloat(input.value);
+                if (isNaN(v)) v = min;
+                v = Math.max(min, Math.min(max, v));
+                slider.value = v;
+                input.value = v;
+                slider.dispatchEvent(new Event('input'));
+            });
+        }
+        linkSliderInput('pendulumMass', 'pendulumMassNum', 0.1, 5, 0.1);
+        linkSliderInput('pendulumLength', 'pendulumLengthNum', 0.5, 3, 0.1);
+        linkSliderInput('pendulumDamping', 'pendulumDampingNum', 0, 0.5, 0.01);
+        linkSliderInput('pendulumAngle', 'pendulumAngleNum', -100, 100, 1);
+
+        // --- Pendulum Simulation ---
+        const pendulumCanvas = document.getElementById('pendulumCanvas');
+        const pendulumCtx = pendulumCanvas.getContext('2d');
+        const graphCanvas = document.getElementById('pendulumGraph');
+        const graphCtx = graphCanvas.getContext('2d');
+
+        let pendulumSystem = {
+            mass: 1.0,
+            length: 1.5,
+            damping: 0.02,
+            angle: 30 * Math.PI / 180,
+            angularVelocity: 0,
+            time: 0,
+            isRunning: false,
+            animationId: null,
+            history: [],
+            maxHistory: 400,
+            pivotX: pendulumCanvas.width / 2,
+            pivotY: 50,
+            reset: function() {
+                this.mass = parseFloat(document.getElementById('pendulumMass').value);
+                this.length = parseFloat(document.getElementById('pendulumLength').value);
+                this.damping = parseFloat(document.getElementById('pendulumDamping').value);
+                this.angle = parseFloat(document.getElementById('pendulumAngle').value) * Math.PI / 180;
+                this.angularVelocity = 0;
+                this.time = 0;
+                this.history = [];
+            }
+        };
+
+        pendulumSystem.reset();
+
+        // --- UI Event Listeners ---
+        document.getElementById('pendulumMass').addEventListener('input', function() {
+            pendulumSystem.mass = parseFloat(this.value);
+        });
+        document.getElementById('pendulumLength').addEventListener('input', function() {
+            pendulumSystem.length = parseFloat(this.value);
+            // Recalculate pivot if needed, redraw everything in real time
+            drawPendulumSystem();
+            updatePendulumData();
+            drawGraph();
+        });
+        document.getElementById('pendulumLengthNum').addEventListener('input', function() {
+            pendulumSystem.length = parseFloat(this.value);
+            drawPendulumSystem();
+            updatePendulumData();
+            drawGraph();
+        });
+        document.getElementById('pendulumDamping').addEventListener('input', function() {
+            pendulumSystem.damping = parseFloat(this.value);
+        });
+        document.getElementById('pendulumAngle').addEventListener('input', function() {
+            const angle = parseFloat(this.value);
+            if (!pendulumSystem.isRunning) {
+                pendulumSystem.angle = angle * Math.PI / 180;
+                drawPendulumSystem();
+                updatePendulumData();
+            }
+        });
+
+        document.getElementById('pendulumStartBtn').addEventListener('click', function() {
+            if (!pendulumSystem.isRunning) {
+                pendulumSystem.isRunning = true;
+                this.disabled = true;
+                document.getElementById('pendulumPauseBtn').disabled = false;
+                animatePendulumSystem();
+            }
+        });
+        document.getElementById('pendulumPauseBtn').addEventListener('click', function() {
+            if (pendulumSystem.isRunning) {
+                pendulumSystem.isRunning = false;
+                document.getElementById('pendulumStartBtn').disabled = false;
+                this.disabled = true;
+                if (pendulumSystem.animationId) {
+                    cancelAnimationFrame(pendulumSystem.animationId);
+                    pendulumSystem.animationId = null;
+                }
+            }
+        });
+        document.getElementById('pendulumResetBtn').addEventListener('click', function() {
+            pendulumSystem.isRunning = false;
+            document.getElementById('pendulumStartBtn').disabled = false;
+            document.getElementById('pendulumPauseBtn').disabled = true;
+            if (pendulumSystem.animationId) {
+                cancelAnimationFrame(pendulumSystem.animationId);
+                pendulumSystem.animationId = null;
+            }
+            pendulumSystem.reset();
+            drawPendulumSystem();
+            updatePendulumData();
+            drawGraph();
+        });
+
+        // --- Graph Controls ---
+        document.getElementById('showAngle').addEventListener('change', drawGraph);
+        document.getElementById('showAngularVelocity').addEventListener('change', drawGraph);
+
+        // --- Animation Loop ---
+        function animatePendulumSystem() {
+            if (!pendulumSystem.isRunning) return;
+            const dt = 0.016; // ~60fps
+            const g = 9.81;
+            const angularAcceleration = (-g / pendulumSystem.length) * Math.sin(pendulumSystem.angle) -
+                pendulumSystem.damping * pendulumSystem.angularVelocity;
+            pendulumSystem.angularVelocity += angularAcceleration * dt;
+            pendulumSystem.angle += pendulumSystem.angularVelocity * dt;
+            pendulumSystem.time += dt;
+
+            pendulumSystem.history.push({
+                time: pendulumSystem.time,
+                angle: pendulumSystem.angle,
+                angularVelocity: pendulumSystem.angularVelocity
+            });
+            if (pendulumSystem.history.length > pendulumSystem.maxHistory) {
+                pendulumSystem.history.shift();
+            }
+
+            drawPendulumSystem();
+            updatePendulumData();
+            drawGraph();
+
+            pendulumSystem.animationId = requestAnimationFrame(animatePendulumSystem);
+        }
+
+        // --- Drawing Functions ---
+        function drawPendulumSystem() {
+            pendulumCtx.clearRect(0, 0, pendulumCanvas.width, pendulumCanvas.height);
+
+            // Draw pivot
+            pendulumCtx.beginPath();
+            pendulumCtx.arc(pendulumSystem.pivotX, pendulumSystem.pivotY, 10, 0, Math.PI * 2);
+            pendulumCtx.fillStyle = '#333';
+            pendulumCtx.fill();
+
+            // Draw rod
+            const scale = 100;
+            const bobX = pendulumSystem.pivotX + Math.sin(pendulumSystem.angle) * pendulumSystem.length * scale;
+            const bobY = pendulumSystem.pivotY + Math.cos(pendulumSystem.angle) * pendulumSystem.length * scale;
+            pendulumCtx.beginPath();
+            pendulumCtx.moveTo(pendulumSystem.pivotX, pendulumSystem.pivotY);
+            pendulumCtx.lineTo(bobX, bobY);
+            pendulumCtx.strokeStyle = '#95a5a6';
+            pendulumCtx.lineWidth = 3;
+            pendulumCtx.stroke();
+
+            // Draw bob
+            pendulumCtx.beginPath();
+            pendulumCtx.arc(bobX, bobY, 20, 0, Math.PI * 2);
+            pendulumCtx.fillStyle = '#e74c3c';
+            pendulumCtx.fill();
+            pendulumCtx.strokeStyle = '#c0392b';
+            pendulumCtx.lineWidth = 2;
+            pendulumCtx.stroke();
+
+            // Draw angle arc
+            pendulumCtx.beginPath();
+            pendulumCtx.arc(pendulumSystem.pivotX, pendulumSystem.pivotY, 40, -Math.PI/2, -Math.PI/2 + pendulumSystem.angle, false);
+            pendulumCtx.strokeStyle = '#2980b9';
+            pendulumCtx.lineWidth = 2;
+            pendulumCtx.stroke();
+
+            // Calculate bob position
+            const g = 9.81; // <-- Add this line to define g for use below
+            const v = pendulumSystem.length * pendulumSystem.angularVelocity; // m/s
+            const vDir = pendulumSystem.angularVelocity >= 0 ? 1 : -1;
+            const vArrowLen = 40; // fixed arrow length for direction
+            const vAngle = pendulumSystem.angle + Math.PI / 2;
+            const vx = vArrowLen * Math.cos(vAngle) * vDir;
+            const vy = vArrowLen * Math.sin(vAngle) * vDir;
+
+            pendulumCtx.save();
+            pendulumCtx.globalAlpha = 0.85;
+            pendulumCtx.beginPath();
+            pendulumCtx.moveTo(bobX, bobY);
+            pendulumCtx.lineTo(bobX + vx, bobY + vy);
+            pendulumCtx.strokeStyle = "#27ae60";
+            pendulumCtx.lineWidth = 3;
+            pendulumCtx.setLineDash([6, 4]);
+            pendulumCtx.stroke();
+            pendulumCtx.setLineDash([]);
+            // Arrowhead for velocity
+            if (Math.abs(v) > 0.01) {
+                const angleV = Math.atan2(vy, vx);
+                pendulumCtx.beginPath();
+                pendulumCtx.moveTo(bobX + vx, bobY + vy);
+                pendulumCtx.lineTo(bobX + vx - 10 * Math.cos(angleV - 0.4), bobY + vy - 10 * Math.sin(angleV - 0.4));
+                pendulumCtx.lineTo(bobX + vx - 10 * Math.cos(angleV + 0.4), bobY + vy - 10 * Math.sin(angleV + 0.4));
+                pendulumCtx.lineTo(bobX + vx, bobY + vy);
+                pendulumCtx.fillStyle = "#27ae60";
+                pendulumCtx.fill();
+            }
+            // Velocity label (show value, but keep label close to bob)
+            pendulumCtx.fillStyle = "#27ae60";
+            pendulumCtx.font = "bold 13px Segoe UI";
+            pendulumCtx.fillText(`v=${(v).toFixed(2)} m/s`, bobX + vx * 0.6 + 10, bobY + vy * 0.6);
+
+            // --- Draw acceleration vector (tangential, fixed length for direction, color for sign) ---
+            const alpha = (-g / pendulumSystem.length) * Math.sin(pendulumSystem.angle) - pendulumSystem.damping * pendulumSystem.angularVelocity;
+            const a = pendulumSystem.length * alpha; // tangential acceleration, m/s²
+            const aDir = alpha >= 0 ? 1 : -1;
+            const aArrowLen = 40;
+            const aAngle = pendulumSystem.angle + Math.PI / 2;
+            const ax = aArrowLen * Math.cos(aAngle) * aDir;
+            const ay = aArrowLen * Math.sin(aAngle) * aDir;
+
+            pendulumCtx.beginPath();
+            pendulumCtx.moveTo(bobX, bobY);
+            pendulumCtx.lineTo(bobX + ax, bobY + ay);
+            pendulumCtx.strokeStyle = "#e67e22";
+            pendulumCtx.lineWidth = 3;
+            pendulumCtx.setLineDash([2, 4]);
+            pendulumCtx.stroke();
+            pendulumCtx.setLineDash([]);
+            // Arrowhead for acceleration
+            if (Math.abs(a) > 0.01) {
+                const angleA = Math.atan2(ay, ax);
+                pendulumCtx.beginPath();
+                pendulumCtx.moveTo(bobX + ax, bobY + ay);
+                pendulumCtx.lineTo(bobX + ax - 10 * Math.cos(angleA - 0.4), bobY + ay - 10 * Math.sin(angleA - 0.4));
+                pendulumCtx.lineTo(bobX + ax - 10 * Math.cos(angleA + 0.4), bobY + ay - 10 * Math.sin(angleA + 0.4));
+                pendulumCtx.lineTo(bobX + ax, bobY + ay);
+                pendulumCtx.fillStyle = "#e67e22";
+                pendulumCtx.fill();
+            }
+            // Acceleration label
+            pendulumCtx.fillStyle = "#e67e22";
+            pendulumCtx.font = "bold 13px Segoe UI";
+            pendulumCtx.fillText(`a=${(a).toFixed(2)} m/s²`, bobX + ax * 0.6 + 10, bobY + ay * 0.6);
+
+            pendulumCtx.restore();
+
+            // Draw angle text
+            pendulumCtx.fillStyle = '#2c3e50';
+            pendulumCtx.font = '15px Segoe UI';
+            pendulumCtx.fillText(`Angle: ${(pendulumSystem.angle * 180 / Math.PI).toFixed(1)}°`, 10, 30);
+        }
+
+        // --- Mouse Drag for Bob Control ---
+        let isDragging = false;
+        let dragStart = null;
+
+        pendulumCanvas.addEventListener('mousedown', function(e) {
+            const rect = pendulumCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const scale = 100;
+            const bobX = pendulumSystem.pivotX + Math.sin(pendulumSystem.angle) * pendulumSystem.length * scale;
+            const bobY = pendulumSystem.pivotY + Math.cos(pendulumSystem.angle) * pendulumSystem.length * scale;
+            const dist = Math.sqrt((mouseX - bobX) ** 2 + (mouseY - bobY) ** 2);
+            if (dist < 25 && !pendulumSystem.isRunning) {
+                isDragging = true;
+                dragStart = { x: mouseX, y: mouseY };
+            }
+        });
+
+        pendulumCanvas.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            const rect = pendulumCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const dx = mouseX - pendulumSystem.pivotX;
+            const dy = mouseY - pendulumSystem.pivotY;
+            let angle = Math.atan2(dx, dy); // angle from vertical
+            let deg = angle * 180 / Math.PI;
+            // Clamp angle to allowed range
+            if (deg < -100) deg = -100;
+            if (deg > 100) deg = 100;
+            angle = deg * Math.PI / 180;
+            pendulumSystem.angle = angle;
+            document.getElementById('pendulumAngle').value = Math.round(deg);
+            document.getElementById('pendulumAngleNum').value = Math.round(deg);
+            drawPendulumSystem();
+            updatePendulumData();
+        });
+
+        window.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+            }
+        });
+
+        // --- Rectified Angle Display ---
+        function updatePendulumData() {
+            document.getElementById('pendulumTime').textContent = pendulumSystem.time.toFixed(2);
+            // Always show angle from vertical, signed, in [-180,180]
+            let deg = pendulumSystem.angle * 180 / Math.PI;
+            if (deg > 180) deg -= 360;
+            if (deg < -180) deg += 360;
+            document.getElementById('pendulumAngleDisp').textContent = deg.toFixed(2);
+            document.getElementById('pendulumAngularVelocity').textContent = (pendulumSystem.angularVelocity * 180 / Math.PI).toFixed(2);
+            const period = 2 * Math.PI * Math.sqrt(pendulumSystem.length / 9.81);
+            document.getElementById('pendulumPeriod').textContent = period.toFixed(2);
+
+            // --- Add these lines for velocity and acceleration ---
+            const v = pendulumSystem.length * pendulumSystem.angularVelocity;
+            const g = 9.81;
+            const alpha = (-g / pendulumSystem.length) * Math.sin(pendulumSystem.angle) - pendulumSystem.damping * pendulumSystem.angularVelocity;
+            const a = pendulumSystem.length * alpha;
+            document.getElementById('pendulumVelocity').textContent = v.toFixed(2);
+            document.getElementById('pendulumAcceleration').textContent = a.toFixed(2);
+        }
+
+        // --- Graph Drawing ---
+        function drawGraph() {
+            graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+            const showAngle = document.getElementById('showAngle').checked;
+            const showAngularVelocity = document.getElementById('showAngularVelocity').checked;
+            const history = pendulumSystem.history;
+            if (history.length < 2) return;
+
+            // Find min/max for scaling
+            let minAngle = Infinity, maxAngle = -Infinity, minVel = Infinity, maxVel = -Infinity;
+            for (const h of history) {
+                const angleDeg = h.angle * 180 / Math.PI;
+                minAngle = Math.min(minAngle, angleDeg);
+                maxAngle = Math.max(maxAngle, angleDeg);
+                const velDeg = h.angularVelocity * 180 / Math.PI;
+                minVel = Math.min(minVel, velDeg);
+                maxVel = Math.max(maxVel, velDeg);
+            }
+            minAngle -= 5; maxAngle += 5;
+            minVel -= 5; maxVel += 5;
+
+            // Draw axes
+            graphCtx.strokeStyle = "#bbb";
+            graphCtx.lineWidth = 1;
+            graphCtx.beginPath();
+            graphCtx.moveTo(40, 10);
+            graphCtx.lineTo(40, 210);
+            graphCtx.lineTo(1160, 210); // <-- match new width
+            graphCtx.stroke();
+
+            // Draw labels
+            graphCtx.fillStyle = "#444";
+            graphCtx.font = "13px Segoe UI";
+            graphCtx.fillText("Time (s)", 1100, 205); // <-- match new width
+            if (showAngle && showAngularVelocity) {
+                graphCtx.fillText("Angle/Velocity", 5, 20);
+            } else if (showAngle) {
+                graphCtx.fillText("Angle (°)", 5, 20);
+            } else if (showAngularVelocity) {
+                graphCtx.fillText("Angular Velocity (°/s)", 5, 20);
+            }
+
+            // Draw data
+            const t0 = history[0].time;
+            const t1 = history[history.length-1].time;
+            const tSpan = t1 - t0 || 1;
+            function tToX(t) {
+                return 40 + ((t - t0) / tSpan) * 1120; // <-- match new width (1160-40)
+            }
+            function yAngleToY(a) {
+                return 210 - ((a - minAngle) / (maxAngle - minAngle || 1)) * 180;
+            }
+            function yVelToY(v) {
+                return 210 - ((v - minVel) / (maxVel - minVel || 1)) * 180;
+            }
+
+            if (showAngle) {
+                graphCtx.strokeStyle = "#2980b9";
+                graphCtx.lineWidth = 2;
+                graphCtx.beginPath();
+                for (let i = 0; i < history.length; ++i) {
+                    const x = tToX(history[i].time);
+                    const y = yAngleToY(history[i].angle * 180 / Math.PI);
+                    if (i === 0) graphCtx.moveTo(x, y);
+                    else graphCtx.lineTo(x, y);
+                }
+                graphCtx.stroke();
+            }
+            if (showAngularVelocity) {
+                graphCtx.strokeStyle = "#e67e22";
+                graphCtx.lineWidth = 2;
+                graphCtx.beginPath();
+                for (let i = 0; i < history.length; ++i) {
+                    const x = tToX(history[i].time);
+                    const y = yVelToY(history[i].angularVelocity * 180 / Math.PI);
+                    if (i === 0) graphCtx.moveTo(x, y);
+                    else graphCtx.lineTo(x, y);
+                }
+                graphCtx.stroke();
+            }
+        }
+
+        // --- Initial Draw ---
+        drawPendulumSystem();
+        updatePendulumData();
+        drawGraph();
+    </script>
+</body>
+</html>

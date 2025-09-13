@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Harmonic Motion Simulation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #2c3e50;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .simulation-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .simulation-panel {
+            flex: 1;
+            min-width: 400px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        canvas {
+            background-color: white;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+            border: 1px solid #ddd;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: inline-block;
+            width: 150px;
+            font-weight: 500;
+        }
+        input[type="range"] {
+            width: 200px;
+            vertical-align: middle;
+        }
+        .value-display {
+            display: inline-block;
+            width: 60px;
+            text-align: right;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .graph-container {
+            margin-top: 0;
+            height: 220px;
+            min-width: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .data-table th {
+            background-color: #f8f9fa;
+        }
+        @media (max-width: 768px) {
+            .simulation-panel {
+                min-width: 100%;
+            }
+        }
+        @media (max-width: 1000px) {
+            .simulation-container {
+                flex-direction: column;
+            }
+            .simulation-panel {
+                min-width: 100%;
+            }
+            /* Stack graphs vertically on small screens */
+            .graph-row {
+                flex-direction: column !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Harmonic Motion Simulation</h1>
+    <p class="subtitle">Explore mass-spring systems and pendulums with interactive controls</p>
+
+    <div class="simulation-container">
+        <div class="simulation-panel">
+            <h2>Mass-Spring System</h2>
+            <canvas id="springCanvas" width="400" height="300"></canvas>
+            <div class="controls">
+                <!-- Mass-Spring System Controls -->
+                <div class="control-group">
+                    <label for="springMass">Mass (kg):</label>
+                    <input type="range" id="springMass" min="0.1" max="5" step="0.1" value="1">
+                    <input type="number" id="springMassNum" min="0.1" max="5" step="0.1" value="1" style="width:60px; margin-left:8px;">
+                    <span class="value-display" id="springMassValue">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label for="springConstant">Spring Constant (N/m):</label>
+                    <input type="range" id="springConstant" min="1" max="50" step="1" value="10">
+                    <input type="number" id="springConstantNum" min="1" max="50" step="1" value="10" style="width:60px; margin-left:8px;">
+                    <span class="value-display" id="springConstantValue">10</span>
+                </div>
+                <div class="control-group">
+                    <label for="springDamping">Damping:</label>
+                    <input type="range" id="springDamping" min="0" max="0.5" step="0.01" value="0.05">
+                    <input type="number" id="springDampingNum" min="0" max="0.5" step="0.01" value="0.05" style="width:60px; margin-left:8px;">
+                    <span class="value-display" id="springDampingValue">0.05</span>
+                </div>
+                <div class="control-group">
+                    <label for="springAmplitude">Amplitude (m):</label>
+                    <input type="range" id="springAmplitude" min="0.1" max="2" step="0.1" value="1">
+                    <input type="number" id="springAmplitudeNum" min="0.1" max="2" step="0.1" value="1" style="width:60px; margin-left:8px;">
+                    <span class="value-display" id="springAmplitudeValue">1.0</span>
+                </div>
+                <button id="springStartBtn">Start</button>
+                <button id="springResetBtn">Reset</button>
+            </div>
+            <table class="data-table">
+                <tr>
+                    <th>Time (s)</th>
+                    <th>Position (m)</th>
+                    <th>Velocity (m/s)</th>
+                    <th>Acceleration (m/s²)</th>
+                </tr>
+                <tr>
+                    <td id="springTime">0.00</td>
+                    <td id="springPosition">0.00</td>
+                    <td id="springVelocity">0.00</td>
+                    <td id="springAcceleration">0.00</td>
+                </tr>
+            </table>
+            <div class="graph-controls" id="springGraphControls" style="margin-bottom:8px;">
+                <label><input type="checkbox" id="showSpringPosition" checked> Position</label>
+                <label><input type="checkbox" id="showSpringVelocity" checked> Velocity</label>
+                <label><input type="checkbox" id="showSpringAcceleration" checked> Acceleration</label>
+            </div>
+            <div class="graph-container" id="springGraph" style="height:220px;"></div>
+        </div>
+        <div class="simulation-panel">
+            <h2>Simple Pendulum</h2>
+            <canvas id="pendulumCanvas" width="400" height="300"></canvas>
+            <div class="controls">
+                <!-- Pendulum System Controls -->
+                <div class="control-group">
+                    <label for="pendulumMass">Mass (kg):</label>
+                    <input type="range" id="pendulumMass" min="0.1" max="5" step="0.1" value="1">
+                    <input type="number" id="pendulumMassNum" min="0.1" max="5" step="0.1" value="1" style="width:60px; margin-left:8px;">
+                    <span class="value-display" id="pendulumMassValue">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label for="pendulumLength">Length (m):</label>
+                    <input type="range" id="pendulumLength" min="0.5" max="3" step="0.1" value="1.5">
+                    <input type="number" id="pendulumLengthNum" min="0.5" max="3" step="0.1" value="1.5" style="width:60px; margin-left:8px;">
+                    <span class="value-display" id="pendulumLengthValue">1.5</span>
+                </div>
+                <div class="control-group">
+                    <label for="pendulumDamping">Damping:</label>
+                    <input type="range" id="pendulumDamping" min="0" max="0.5" step="0.01" value="0.02">
+                    <input type="number" id="pendulumDampingNum" min="0" max="0.5" step="0.01" value="0.02" style="width:60px; margin-left:8px;">
+                    <span class="value-display" id="pendulumDampingValue">0.02</span>
+                </div>
+                <div class="control-group">
+                    <label for="pendulumAngle">Initial Angle (°):</label>
+                    <input type="range" id="pendulumAngle" min="5" max="80" step="1" value="30">
+                    <input type="number" id="pendulumAngleNum" min="5" max="80" step="1" value="30" style="width:60px; margin-left:8px;">
+                    <span class="value-display" id="pendulumAngleValue">30</span>
+                </div>
+                <button id="pendulumStartBtn">Start</button>
+                <button id="pendulumResetBtn">Reset</button>
+            </div>
+            <table class="data-table">
+                <tr>
+                    <th>Time (s)</th>
+                    <th>Angle (°)</th>
+                    <th>Angular Velocity (°/s)</th>
+                    <th>Period (s)</th>
+                </tr>
+                <tr>
+                    <td id="pendulumTime">0.00</td>
+                    <td id="pendulumAngleDisp">0.00</td>
+                    <td id="pendulumAngularVelocity">0.00</td>
+                    <td id="pendulumPeriod">0.00</td>
+                </tr>
+            </table>
+            <div class="graph-controls" id="pendulumGraphControls" style="margin-bottom:8px;">
+                <label><input type="checkbox" id="showPendulumAngle" checked> Angle</label>
+                <label><input type="checkbox" id="showPendulumAngularVelocity" checked> Angular Velocity</label>
+            </div>
+            <div class="graph-container" id="pendulumGraph" style="height:220px;"></div>
+        </div>
+    </div>
+    <script>
+        // Mass-Spring System Simulation
+        const springCanvas = document.getElementById('springCanvas');
+        const springCtx = springCanvas.getContext('2d');
+        const springGraph = document.getElementById('springGraph');
+        
+        let springSystem = {
+            mass: 1.0,
+            k: 10,
+            damping: 0.05,
+            amplitude: 1.0,
+            position: 0,
+            velocity: 0,
+            acceleration: 0,
+            time: 0,
+            isRunning: false,
+            animationId: null,
+            history: [],
+            maxHistory: 200,
+            equilibrium: springCanvas.width / 2,
+            springCoils: 10,
+            springWidth: 30,
+            reset: function() {
+                this.position = this.amplitude;
+                this.velocity = 0;
+                this.time = 0;
+                this.history = [];
+            }
+        };
+        
+        // Pendulum System Simulation
+        const pendulumCanvas = document.getElementById('pendulumCanvas');
+        const pendulumCtx = pendulumCanvas.getContext('2d');
+        const pendulumGraph = document.getElementById('pendulumGraph');
+        
+        let pendulumSystem = {
+            mass: 1.0,
+            length: 1.5,
+            damping: 0.02,
+            angle: 30 * Math.PI / 180,
+            angularVelocity: 0,
+            time: 0,
+            isRunning: false,
+            animationId: null,
+            history: [],
+            maxHistory: 200,
+            pivotX: pendulumCanvas.width / 2,
+            pivotY: 50,
+            reset: function() {
+                this.angle = parseFloat(document.getElementById('pendulumAngle').value) * Math.PI / 180;
+                this.angularVelocity = 0;
+                this.time = 0;
+                this.history = [];
+            }
+        };
+        
+        // Initialize both systems
+        springSystem.reset();
+        pendulumSystem.reset();
+        
+        // Set up controls for spring system
+        document.getElementById('springMass').addEventListener('input', function() {
+            springSystem.mass = parseFloat(this.value);
+            document.getElementById('springMassValue').textContent = springSystem.mass.toFixed(1);
+            document.getElementById('springMassNum').value = springSystem.mass.toFixed(1);
+        });
+        
+        document.getElementById('springConstant').addEventListener('input', function() {
+            springSystem.k = parseFloat(this.value);
+            document.getElementById('springConstantValue').textContent = springSystem.k;
+            document.getElementById('springConstantNum').value = springSystem.k;
+        });
+        
+        document.getElementById('springDamping').addEventListener('input', function() {
+            springSystem.damping = parseFloat(this.value);
+            document.getElementById('springDampingValue').textContent = springSystem.damping.toFixed(2);
+            document.getElementById('springDampingNum').value = springSystem.damping.toFixed(2);
+        });
+        
+        document.getElementById('springAmplitude').addEventListener('input', function() {
+            springSystem.amplitude = parseFloat(this.value);
+            document.getElementById('springAmplitudeValue').textContent = springSystem.amplitude.toFixed(1);
+            document.getElementById('springAmplitudeNum').value = springSystem.amplitude.toFixed(1);
+            if (!springSystem.isRunning) {
+                springSystem.position = springSystem.amplitude;
+                drawSpringSystem();
+            }
+        });
+        
+        document.getElementById('springStartBtn').addEventListener('click', function() {
+            if (!springSystem.isRunning) {
+                springSystem.isRunning = true;
+                animateSpringSystem();
+            }
+        });
+        
+        document.getElementById('springResetBtn').addEventListener('click', function() {
+            springSystem.isRunning = false;
+            if (springSystem.animationId) {
+                cancelAnimationFrame(springSystem.animationId);
+                springSystem.animationId = null;
+            }
+            springSystem.reset();
+            drawSpringSystem();
+            updateSpringData();
+        });
+        
+        // Set up controls for pendulum system
+        document.getElementById('pendulumMass').addEventListener('input', function() {
+            pendulumSystem.mass = parseFloat(this.value);
+            document.getElementById('pendulumMassValue').textContent = pendulumSystem.mass.toFixed(1);
+            document.getElementById('pendulumMassNum').value = pendulumSystem.mass.toFixed(1);
+        });
+        
+        document.getElementById('pendulumLength').addEventListener('input', function() {
+            pendulumSystem.length = parseFloat(this.value);
+            document.getElementById('pendulumLengthValue').textContent = pendulumSystem.length.toFixed(1);
+            document.getElementById('pendulumLengthNum').value = pendulumSystem.length.toFixed(1);
+        });
+        
+        document.getElementById('pendulumDamping').addEventListener('input', function() {
+            pendulumSystem.damping = parseFloat(this.value);
+            document.getElementById('pendulumDampingValue').textContent = pendulumSystem.damping.toFixed(2);
+            document.getElementById('pendulumDampingNum').value = pendulumSystem.damping.toFixed(2);
+        });
+        
+        document.getElementById('pendulumAngle').addEventListener('input', function() {
+            const angle = parseFloat(this.value);
+            document.getElementById('pendulumAngleValue').textContent = angle;
+            document.getElementById('pendulumAngleNum').value = angle;
+            if (!pendulumSystem.isRunning) {
+                pendulumSystem.angle = angle * Math.PI / 180;
+                drawPendulumSystem();
+            }
+        });
+        
+        document.getElementById('pendulumStartBtn').addEventListener('click', function() {
+            if (!pendulumSystem.isRunning) {
+                pendulumSystem.isRunning = true;
+                animatePendulumSystem();
+            }
+        });
+        
+        document.getElementById('pendulumResetBtn').addEventListener('click', function() {
+            pendulumSystem.isRunning = false;
+            if (pendulumSystem.animationId) {
+                cancelAnimationFrame(pendulumSystem.animationId);
+                pendulumSystem.animationId = null;
+            }
+            pendulumSystem.reset();
+            drawPendulumSystem();
+            updatePendulumData();
+        });
+        
+        // Graph variable toggles
+        let springGraphVars = {
+            position: true,
+            velocity: true,
+            acceleration: true
+        };
+        let pendulumGraphVars = {
+            angle: true,
+            angularVelocity: true
+        };
+
+        document.getElementById('showSpringPosition').addEventListener('change', function() {
+            springGraphVars.position = this.checked;
+            drawSpringGraph();
+        });
+        document.getElementById('showSpringVelocity').addEventListener('change', function() {
+            springGraphVars.velocity = this.checked;
+            drawSpringGraph();
+        });
+        document.getElementById('showSpringAcceleration').addEventListener('change', function() {
+            springGraphVars.acceleration = this.checked;
+            drawSpringGraph();
+        });
+        document.getElementById('showPendulumAngle').addEventListener('change', function() {
+            pendulumGraphVars.angle = this.checked;
+            drawPendulumGraph();
+        });
+        document.getElementById('showPendulumAngularVelocity').addEventListener('change', function() {
+            pendulumGraphVars.angularVelocity = this.checked;
+            drawPendulumGraph();
+        });
+        
+        // Animation functions
+        function animateSpringSystem() {
+            if (!springSystem.isRunning) return;
+            
+            const dt = 0.016; // ~60fps
+            
+            // Update physics (damped harmonic oscillator)
+            springSystem.acceleration = (-springSystem.k * springSystem.position - springSystem.damping * springSystem.velocity) / springSystem.mass;
+            springSystem.velocity += springSystem.acceleration * dt;
+            springSystem.position += springSystem.velocity * dt;
+            springSystem.time += dt;
+            
+            // Add to history for graphing
+            springSystem.history.push({
+                time: springSystem.time,
+                position: springSystem.position,
+                velocity: springSystem.velocity,
+                acceleration: springSystem.acceleration
+            });
+            
+            if (springSystem.history.length > springSystem.maxHistory) {
+                springSystem.history.shift();
+            }
+            
+            drawSpringSystem();
+            updateSpringData();
+            drawSpringGraph();
+            
+            springSystem.animationId = requestAnimationFrame(animateSpringSystem);
+        }
+        
+        function animatePendulumSystem() {
+            if (!pendulumSystem.isRunning) return;
+            
+            const dt = 0.016; // ~60fps
+            const g = 9.81; // gravitational acceleration
+            
+            // Update physics (damped pendulum)
+            const angularAcceleration = (-g / pendulumSystem.length) * Math.sin(pendulumSystem.angle) - 
+                                      pendulumSystem.damping * pendulumSystem.angularVelocity;
+            pendulumSystem.angularVelocity += angularAcceleration * dt;
+            pendulumSystem.angle += pendulumSystem.angularVelocity * dt;
+            pendulumSystem.time += dt;
+            
+            // Add to history for graphing
+            pendulumSystem.history.push({
+                time: pendulumSystem.time,
+                angle: pendulumSystem.angle,
+                angularVelocity: pendulumSystem.angularVelocity
+            });
+            
+            if (pendulumSystem.history.length > pendulumSystem.maxHistory) {
+                pendulumSystem.history.shift();
+            }
+            
+            drawPendulumSystem();
+            updatePendulumData();
+            drawPendulumGraph();
+            
+            pendulumSystem.animationId = requestAnimationFrame(animatePendulumSystem);
+        }
+        
+        // Drawing functions
+        function drawSpringSystem() {
+            springCtx.clearRect(0, 0, springCanvas.width, springCanvas.height);
+
+            // Draw ceiling
+            springCtx.beginPath();
+            springCtx.moveTo(0, 50);
+            springCtx.lineTo(springCanvas.width, 50);
+            springCtx.strokeStyle = '#333';
+            springCtx.lineWidth = 2;
+            springCtx.stroke();
+            
+            // Calculate position (scale for visualization)
+            const scale = 100;
+            const visualPosition = springSystem.equilibrium + springSystem.position * scale;
+            
+            // Draw spring
+            const springTop = 50;
+            const springBottom = 150;
+            const springLeft = visualPosition - springSystem.springWidth / 2;
+            const coilHeight = (springBottom - springTop) / springSystem.springCoils;
+            
+            springCtx.beginPath();
+            springCtx.moveTo(springLeft, springTop);
+            for (let i = 0; i < springSystem.springCoils; i++) {
+                const y = springTop + i * coilHeight;
+                const x = springLeft + (i % 2 === 0 ? 0 : springSystem.springWidth);
+                springCtx.lineTo(x, y + coilHeight / 2);
+            }
+            springCtx.lineTo(springLeft, springBottom);
+            springCtx.strokeStyle = '#3498db';
+            springCtx.lineWidth = 2;
+            springCtx.stroke();
+            
+            // Draw mass
+            springCtx.fillStyle = '#e74c3c';
+            springCtx.fillRect(visualPosition - 30, springBottom, 60, 60);
+            springCtx.strokeStyle = '#c0392b';
+            springCtx.lineWidth = 2;
+            springCtx.strokeRect(visualPosition - 30, springBottom, 60, 60);
+            
+            // Draw equilibrium line
+            springCtx.beginPath();
+            springCtx.moveTo(springSystem.equilibrium - 40, springBottom + 80);
+            springCtx.lineTo(springSystem.equilibrium + 40, springBottom + 80);
+            springCtx.setLineDash([5, 3]);
+            springCtx.strokeStyle = '#7f8c8d';
+            springCtx.lineWidth = 1;
+            springCtx.stroke();
+            springCtx.setLineDash([]);
+            
+            // Draw position indicator
+            springCtx.fillStyle = '#2c3e50';
+            springCtx.font = '14px Arial';
+            springCtx.fillText(`Displacement: ${springSystem.position.toFixed(2)} m`, 10, 30);
+        }
+        
+        function drawPendulumSystem() {
+            pendulumCtx.clearRect(0, 0, pendulumCanvas.width, pendulumCanvas.height);
+
+            // Draw pivot
+            pendulumCtx.beginPath();
+            pendulumCtx.arc(pendulumSystem.pivotX, pendulumSystem.pivotY, 10, 0, Math.PI * 2);
+            pendulumCtx.fillStyle = '#333';
+            pendulumCtx.fill();
+            
+            // Calculate bob position
+            const scale = 100; // pixels per meter
+            const bobX = pendulumSystem.pivotX + Math.sin(pendulumSystem.angle) * pendulumSystem.length * scale;
+            const bobY = pendulumSystem.pivotY + Math.cos(pendulumSystem.angle) * pendulumSystem.length * scale;
+            
+            // Draw string
+            pendulumCtx.beginPath();
+            pendulumCtx.moveTo(pendulumSystem.pivotX, pendulumSystem.pivotY);
+            pendulumCtx.lineTo(bobX, bobY);
+            pendulumCtx.strokeStyle = '#95a5a6';
+            pendulumCtx.lineWidth = 2;
+            pendulumCtx.stroke();
+            
+            // Draw bob
+            pendulumCtx.beginPath();
+            pendulumCtx.arc(bobX, bobY, 20, 0, Math.PI * 2);
+            pendulumCtx.fillStyle = '#e74c3c';
+            pendulumCtx.fill();
+            pendulumCtx.strokeStyle = '#c0392b';
+            pendulumCtx.lineWidth = 2;
+            pendulumCtx.stroke();
+            
+            // Draw angle indicator
+            const indicatorRadius = 40;
+            pendulumCtx.beginPath();
+            pendulumCtx.arc(pendulumSystem.pivotX, pendulumSystem.pivotY, indicatorRadius, 
+                          -Math.PI/2 - pendulumSystem.angle, -Math.PI/2, pendulumSystem.angle > 0);
+            pendulumCtx.strokeStyle = 'rgba(52, 152, 219, 0.5)';
+            pendulumCtx.lineWidth = 2;
+            pendulumCtx.stroke();
+            
+            pendulumCtx.fillStyle = '#2c3e50';
+            pendulumCtx.font = '14px Arial';
+            pendulumCtx.fillText(`Angle: ${(pendulumSystem.angle * 180 / Math.PI).toFixed(1)}°`, 10, 30);
+        }
+        
+        // Graph drawing functions
+        function drawSpringGraph() {
+            if (springSystem.history.length < 2) return;
+
+            // Create canvas if it doesn't exist
+            if (!springGraph.canvas) {
+                springGraph.innerHTML = '';
+                const canvas = document.createElement('canvas');
+                canvas.width = springGraph.clientWidth;
+                canvas.height = springGraph.clientHeight;
+                springGraph.appendChild(canvas);
+                springGraph.canvas = canvas;
+                springGraph.ctx = canvas.getContext('2d');
+            }
+            
+            const ctx = springGraph.ctx;
+            const width = springGraph.canvas.width;
+            const height = springGraph.canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+
+            // Find min/max values for scaling
+            let minPos = Infinity, maxPos = -Infinity;
+            let minVel = Infinity, maxVel = -Infinity;
+            let minAcc = Infinity, maxAcc = -Infinity;
+            
+            springSystem.history.forEach(point => {
+                minPos = Math.min(minPos, point.position);
+                maxPos = Math.max(maxPos, point.position);
+                minVel = Math.min(minVel, point.velocity);
+                maxVel = Math.max(maxVel, point.velocity);
+                minAcc = Math.min(minAcc, point.acceleration);
+                maxAcc = Math.max(maxAcc, point.acceleration);
+            });
+            
+            const rangePos = maxPos - minPos || 2;
+            const rangeVel = maxVel - minVel || 2;
+            const rangeAcc = maxAcc - minAcc || 2;
+            
+            // Draw grid and axis markings
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#888';
+            for (let y = 0; y <= height; y += height / 4) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+                // Y-axis markings
+                let label = '';
+                if (springGraphVars.position) {
+                    label = (maxPos - ((y / height) * (maxPos - minPos))).toFixed(2);
+                } else if (springGraphVars.velocity) {
+                    label = (maxVel - ((y / height) * (maxVel - minVel))).toFixed(2);
+                } else if (springGraphVars.acceleration) {
+                    label = (maxAcc - ((y / height) * (maxAcc - minAcc))).toFixed(2);
+                }
+                if (label) ctx.fillText(label, 5, y - 2);
+            }
+            // X-axis time markings
+            for (let x = 0; x <= width; x += width / 4) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+                // Time labels
+                const t = (springSystem.history[0]?.time || 0) + ((x / width) * ((springSystem.history.at(-1)?.time || 0) - (springSystem.history[0]?.time || 0)));
+                ctx.fillText(t.toFixed(1) + 's', x + 2, height - 5);
+            }
+
+            // Draw reference line at y=0
+            ctx.beginPath();
+            ctx.moveTo(0, height/2);
+            ctx.lineTo(width, height/2);
+            ctx.strokeStyle = '#bbb';
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw graphs based on toggles
+            if (springGraphVars.position) {
+                ctx.beginPath();
+                springSystem.history.forEach((point, i) => {
+                    const x = (i / (springSystem.history.length - 1)) * width;
+                    const y = height/2 - (point.position / rangePos) * height/2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            if (springGraphVars.velocity) {
+                ctx.beginPath();
+                springSystem.history.forEach((point, i) => {
+                    const x = (i / (springSystem.history.length - 1)) * width;
+                    const y = height/2 - (point.velocity / rangeVel) * height/2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = '#2ecc71';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            if (springGraphVars.acceleration) {
+                ctx.beginPath();
+                springSystem.history.forEach((point, i) => {
+                    const x = (i / (springSystem.history.length - 1)) * width;
+                    const y = height/2 - (point.acceleration / rangeAcc) * height/2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw legend
+            let legendY = 15;
+            if (springGraphVars.position) {
+                ctx.fillStyle = '#3498db';
+                ctx.fillText('Position', 60, legendY);
+                legendY += 15;
+            }
+            if (springGraphVars.velocity) {
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillText('Velocity', 60, legendY);
+                legendY += 15;
+            }
+            if (springGraphVars.acceleration) {
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillText('Acceleration', 60, legendY);
+            }
+        }
+        
+        function drawPendulumGraph() {
+            if (pendulumSystem.history.length < 2) return;
+
+            // Create canvas if it doesn't exist
+            if (!pendulumGraph.canvas) {
+                pendulumGraph.innerHTML = '';
+                const canvas = document.createElement('canvas');
+                canvas.width = pendulumGraph.clientWidth;
+                canvas.height = pendulumGraph.clientHeight;
+                pendulumGraph.appendChild(canvas);
+                pendulumGraph.canvas = canvas;
+                pendulumGraph.ctx = canvas.getContext('2d');
+            }
+            
+            const ctx = pendulumGraph.ctx;
+            const width = pendulumGraph.canvas.width;
+            const height = pendulumGraph.canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+
+            // Find min/max values for scaling
+            let minAngle = Infinity, maxAngle = -Infinity;
+            let minAngVel = Infinity, maxAngVel = -Infinity;
+            
+            pendulumSystem.history.forEach(point => {
+                minAngle = Math.min(minAngle, point.angle);
+                maxAngle = Math.max(maxAngle, point.angle);
+                minAngVel = Math.min(minAngVel, point.angularVelocity);
+                maxAngVel = Math.max(maxAngVel, point.angularVelocity);
+            });
+            
+            const rangeAngle = maxAngle - minAngle || Math.PI/2;
+            const rangeAngVel = maxAngVel - minAngVel || Math.PI/2;
+            
+            // Draw grid and axis markings
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#888';
+            for (let y = 0; y <= height; y += height / 4) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+                // Y-axis markings
+                let label = '';
+                if (pendulumGraphVars.angle) {
+                    label = ((maxAngle - ((y / height) * (maxAngle - minAngle))) * 180 / Math.PI).toFixed(1) + '°';
+                } else if (pendulumGraphVars.angularVelocity) {
+                    label = ((maxAngVel - ((y / height) * (maxAngVel - minAngVel))) * 180 / Math.PI).toFixed(1) + '°/s';
+                }
+                if (label) ctx.fillText(label, 5, y - 2);
+            }
+            // X-axis time markings
+            for (let x = 0; x <= width; x += width / 4) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+                // Time labels
+                const t = (pendulumSystem.history[0]?.time || 0) + ((x / width) * ((pendulumSystem.history.at(-1)?.time || 0) - (pendulumSystem.history[0]?.time || 0)));
+                ctx.fillText(t.toFixed(1) + 's', x + 2, height - 5);
+            }
+
+            // Draw reference line at y=0
+            ctx.beginPath();
+            ctx.moveTo(0, height/2);
+            ctx.lineTo(width, height/2);
+            ctx.strokeStyle = '#bbb';
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw graphs based on toggles
+            let legendY = 15;
+            if (pendulumGraphVars.angle) {
+                ctx.beginPath();
+                pendulumSystem.history.forEach((point, i) => {
+                    const x = (i / (pendulumSystem.history.length - 1)) * width;
+                    const y = height/2 - (point.angle / rangeAngle) * height/2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#3498db';
+                ctx.fillText('Angle', 60, legendY);
+                legendY += 15;
+            }
+            if (pendulumGraphVars.angularVelocity) {
+                ctx.beginPath();
+                pendulumSystem.history.forEach((point, i) => {
+                    const x = (i / (pendulumSystem.history.length - 1)) * width;
+                    const y = height/2 - (point.angularVelocity / rangeAngVel) * height/2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = '#2ecc71';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillText('Angular Velocity', 60, legendY);
+            }
+        }
+        
+        // Data display functions
+        function updateSpringData() {
+            document.getElementById('springTime').textContent = springSystem.time.toFixed(2);
+            document.getElementById('springPosition').textContent = springSystem.position.toFixed(2);
+            document.getElementById('springVelocity').textContent = springSystem.velocity.toFixed(2);
+            document.getElementById('springAcceleration').textContent = springSystem.acceleration.toFixed(2);
+        }
+        
+        function updatePendulumData() {
+            document.getElementById('pendulumTime').textContent = pendulumSystem.time.toFixed(2);
+            document.getElementById('pendulumAngleDisp').textContent = (pendulumSystem.angle * 180 / Math.PI).toFixed(2);
+            document.getElementById('pendulumAngularVelocity').textContent = (pendulumSystem.angularVelocity * 180 / Math.PI).toFixed(2);
+            
+            // Calculate period (T = 2π√(L/g))
+            const period = 2 * Math.PI * Math.sqrt(pendulumSystem.length / 9.81);
+            document.getElementById('pendulumPeriod').textContent = period.toFixed(2);
+        }
+        
+        // Initial draw
+        drawSpringSystem();
+        drawPendulumSystem();
+    </script>
+</body>
+</html>

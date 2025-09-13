@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Logic Gate Simulator (AND, OR, NOT, NAND, NOR)</title>
+<style>
+  :root{
+    --bg:#0f1320;
+    --panel:#161b2e;
+    --grid:#22283e;
+    --gate:#283253;
+    --gate-border:#3a4a7a;
+    --text:#e8ecff;
+    --accent:#7aa2ff;
+    --accent-2:#1dd1a1;
+    --low:#5b627a;
+    --wire:#9bb2ff;
+    --wire-active:#1dd1a1;
+    --pin:#c2ccff;
+    --pin-active:#1dd1a1;
+    --danger:#ff6b6b;
+    --ghost:#99a9ff;
+  }
+
+  html, body {
+    height:100%;
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    overflow:hidden;
+  }
+
+  .frame-wrap{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    padding:2vh 2vw;
+  }
+  .frame{
+    width: min(92vw, 160vh);
+    aspect-ratio:16/9;
+    background:var(--panel);
+    border:1px solid #2b3350;
+    border-radius:14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 0 60px rgba(0,0,0,0.2);
+    display:grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: 56px 1fr 54px;
+    grid-template-areas:
+      "toolbar toolbar"
+      "palette canvas"
+      "status status";
+    overflow:hidden;
+  }
+
+  .toolbar{
+    grid-area:toolbar;
+    display:flex; gap:10px; align-items:center;
+    padding:10px 14px;
+    background:linear-gradient(180deg, #1a2037 0%, #171d32 100%);
+    border-bottom:1px solid #2b3350;
+  }
+  .toolbar h1{ font-size:16px; font-weight:600; margin:0 12px 0 0; color:#e0e5ff; }
+  .toolbar .spacer{ flex:1; }
+  .toolbar button, .toolbar .toggle{
+    background:#223058;
+    color:#e8ecff;
+    border:1px solid #3a4a7a;
+    border-radius:10px;
+    padding:8px 12px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .toolbar button:hover{ filter:brightness(1.07); }
+  .toolbar .toggle.active{ background:var(--accent); border-color:#6e91ff; }
+
+  .palette{
+    grid-area:palette;
+    border-right:1px solid #2b3350;
+    background:#151a2d;
+    padding:12px;
+    overflow:auto;
+  }
+
+  .palette h2{ margin:6px 0 10px; font-size:14px; color:#cbd3ff; font-weight:600; }
+
+  .gate-item{
+    display:flex; align-items:center; gap:10px;
+    background:#1a2140;
+    border:1px solid #2c355a;
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:10px;
+    cursor:grab;
+    user-select:none;
+  }
+  .gate-icon{
+    width:48px; height:32px; background:var(--gate);
+    border:1px solid var(--gate-border); border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; color:#cfe0ff; font-size:10px;
+  }
+  .gate-item:active{ cursor:grabbing; }
+  .desc{ font-size:12px; color:#9fb0ff; }
+
+  .canvas{
+    grid-area:canvas;
+    position:relative;
+    background:
+      linear-gradient(#0000 23px, var(--grid) 24px) 0 0/24px 24px,
+      linear-gradient(90deg, #0000 23px, var(--grid) 24px) 0 0/24px 24px,
+      #0f1320;
+    overflow:hidden;
+    cursor:default;
+  }
+
+  svg.wires{ position:absolute; inset:0; pointer-events:none; }
+  path.wire{
+    fill:none; stroke:var(--wire); stroke-width:3.5px;
+    filter: drop-shadow(0 0 2px rgba(122,162,255,0.35));
+  }
+  path.wire.active{ stroke:var(--wire-active); }
+
+  .node{
+    position:absolute;
+    min-width:140px;
+    min-height:84px;
+    background:var(--gate);
+    border:1px solid var(--gate-border);
+    border-radius:12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    padding:8px 10px 10px;
+    user-select:none;
+  }
+  .node .title{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:6px; gap:8px;
+  }
+  .node .title .name{ font-size:12px; font-weight:700; color:#d5defc; letter-spacing:0.3px; }
+  .node .title .close{
+    width:20px; height:20px; border-radius:6px;
+    background:#202a4a; color:#b7c4ff; border:1px solid #334376;
+    font-size:12px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .node .title .close:hover{ background:#2a3763; color:#fff; }
+
+  .node-content{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:8px; align-items:center;
+  }
+
+  .pins-col{ display:flex; flex-direction:column; gap:8px; }
+  .pin{
+    display:flex; align-items:center; gap:6px;
+    background:#1c2444;
+    border:1px solid #2b355e;
+    border-radius:10px;
+    padding:6px 8px;
+    color:#c5d2ff; font-size:12px;
+  }
+  .pin .bubble{
+    width:14px; height:14px; border-radius:50%;
+    background:var(--pin); border:1px solid #99a9ff;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.25);
+  }
+  .pin.b1 .bubble{ background:var(--pin-active); border-color:#27d9a7; }
+  .pin-label{ min-width:16px; text-align:center; font-weight:600; color:#9fb0ff; }
+
+  .pin.input .bubble{ cursor:pointer; }
+  .pin.output .bubble{ cursor:crosshair; }
+
+  .gate-sign-wrap{
+    width:84px; height:54px;
+    display:flex; align-items:center; justify-content:center;
+    background:#1b2242; border:1px solid #2c3560; border-radius:10px;
+  }
+  .gate-sign-wrap svg{ width:78px; height:44px; }
+  .sign-stroke{ stroke:#cfe0ff; fill:none; stroke-width:2; }
+  .sign-bubble{ fill:#cfe0ff; }
+
+  .status{
+    grid-area:status;
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px;
+    background:linear-gradient(0deg, #151a2d 0%, #161b2e 100%);
+    border-top:1px solid #2b3350;
+    font-size:12px; color:#b8c6ff;
+  }
+  .status .badge{
+    background:#1b2342; border:1px solid #2c3763; color:#cfe0ff;
+    padding:6px 10px; border-radius:10px;
+  }
+  .status .badge.good{ border-color:#1e8f70; color:#caffea; }
+  .status .badge.warn{ border-color:#7a3a3a; color:#ffd4d4; }
+
+  path.ghost{ stroke:var(--ghost); stroke-width:2.5px; fill:none; stroke-dasharray:6 6; }
+
+  .node.selected{ outline:2px solid #7aa2ff88; outline-offset:2px; }
+
+  .hint{
+    position:absolute; top:8px; right:8px;
+    background:#0c0f1d; border:1px solid #2b3350; color:#c9d3ff;
+    padding:8px 10px; border-radius:10px; font-size:11px; opacity:0.9;
+  }
+
+  @media (max-width:900px){
+    .frame{ grid-template-columns: 230px 1fr; }
+    .node{ min-width:120px; }
+    .gate-sign-wrap{ width:74px; height:48px; }
+    .gate-sign-wrap svg{ width:70px; height:40px; }
+  }
+</style>
+</head>
+<body>
+<div class="frame-wrap">
+  <div class="frame" id="frame">
+    <div class="toolbar">
+      <h1>Logic Gate Simulator</h1>
+      <span class="badge">Gates: AND, OR, NOT, NAND, NOR</span>
+      <div class="spacer"></div>
+      <div class="right-group">
+        <button id="btn-reset">Reset</button>
+        <button id="btn-clear-wires">Clear Wires</button>
+        <button id="btn-export">Export</button>
+        <button id="btn-import">Import</button>
+        <span class="toggle active" id="snap-toggle">Snap</span>
+      </div>
+    </div>
+
+    <div class="palette" id="palette">
+      <h2>Add Gates</h2>
+
+      <div class="gate-item" draggable="true" data-type="INPUT">
+        <div class="gate-icon">IN</div>
+        <div>
+          <div>Input Toggle</div>
+          <div class="desc">Single output 0/1 source</div>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="AND">
+        <div class="gate-icon">AND</div>
+        <div>
+          <div>AND Gate</div>
+          <div class="desc">Q=A∧B</div>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="OR">
+        <div class="gate-icon">OR</div>
+        <div>
+          <div>OR Gate</div>
+          <div class="desc">Q=A∨B</div>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="NOT">
+        <div class="gate-icon">NOT</div>
+        <div>
+          <div>NOT Gate</div>
+          <div class="desc">Q=¬A</div>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="NAND">
+        <div class="gate-icon">NAND</div>
+        <div>
+          <div>NAND Gate</div>
+          <div class="desc">Q=¬(A∧B)</div>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="NOR">
+        <div class="gate-icon">NOR</div>
+        <div>
+          <div>NOR Gate</div>
+          <div class="desc">Q=¬(A∨B)</div>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="OUTPUT">
+        <div class="gate-icon">OUT</div>
+        <div>
+          <div>Output Lamp</div>
+          <div class="desc">Displays 0/1</div>
+        </div>
+      </div>
+
+      <div class="hint">
+        • Drag gates to canvas<br>
+        • Toggle INPUT by clicking its output bubble<br>
+        • Drag from output bubble to input bubble to wire<br>
+        • Click un-wired input bubbles to test manually<br>
+        • Drag nodes to reposition (snap optional)<br>
+        • Right-click wire to delete
+      </div>
+    </div>
+
+    <div class="canvas" id="canvas">
+      <svg class="wires" id="wires" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="status" id="status">
+      <span class="badge good" id="sim-status">Stable</span>
+      <span class="badge">Nodes: <span id="count-nodes">0</span></span>
+      <span class="badge">Wires: <span id="count-wires">0</span></span>
+      <span class="badge">Snap: <span id="snap-state">On</span></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('canvas');
+  const wiresSvg = document.getElementById('wires');
+  const palette = document.getElementById('palette');
+  const btnReset = document.getElementById('btn-reset');
+  const btnClear = document.getElementById('btn-clear-wires');
+  const btnExport = document.getElementById('btn-export');
+  const btnImport = document.getElementById('btn-import');
+  const snapToggle = document.getElementById('snap-toggle');
+  const snapState = document.getElementById('snap-state');
+  const countNodes = document.getElementById('count-nodes');
+  const countWires = document.getElementById('count-wires');
+  const simStatus = document.getElementById('sim-status');
+
+  let snap = true;
+  let idCounter = 1;
+
+  const GRID = 24;
+  const NODE_DEFAULTS = {
+    INPUT: { inputs:0, outputs:1 },
+    OUTPUT:{ inputs:1, outputs:0 },
+    NOT:  { inputs:1, outputs:1 },
+    AND:  { inputs:2, outputs:1 },
+    OR:   { inputs:2, outputs:1 },
+    NAND: { inputs:2, outputs:1 },
+    NOR:  { inputs:2, outputs:1 },
+  };
+
+  const nodes = new Map();    // id -> node object
+  const edges = new Map();    // edgeId -> {from:{node,pin}, to:{node,pin}}
+  const outputsOf = new Map();// nodeId -> array of outgoing edgeIds
+  const inputsOf = new Map(); // nodeId -> map pinIndex->edgeId
+
+  function ensureSvgSize(){
+    const r = canvas.getBoundingClientRect();
+    wiresSvg.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
+  }
+  window.addEventListener('resize', ensureSvgSize);
+  ensureSvgSize();
+
+  // Palette drag
+  palette.querySelectorAll('.gate-item').forEach(item=>{
+    item.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/gate-type', item.dataset.type);
+    });
+  });
+  canvas.addEventListener('dragover', e=> e.preventDefault());
+  canvas.addEventListener('drop', e=>{
+    e.preventDefault();
+    const type = e.dataTransfer.getData('text/gate-type');
+    if(!type) return;
+    const pos = canvasPoint(e.clientX, e.clientY);
+    const x = snap ? Math.round(pos.x/GRID)*GRID : pos.x;
+    const y = snap ? Math.round(pos.y/GRID)*GRID : pos.y;
+    createNode(type, x, y);
+  });
+
+  // Create node
+  function createNode(type, x, y){
+    const spec = NODE_DEFAULTS[type];
+    if(!spec){ return; }
+    const id = `n${idCounter++}`;
+
+    const nodeEl = document.createElement('div');
+    nodeEl.className = 'node';
+    nodeEl.style.left = (x|0)+'px';
+    nodeEl.style.top  = (y|0)+'px';
+    nodeEl.dataset.id = id;
+    nodeEl.dataset.type = type;
+
+    nodeEl.innerHTML = `
+      <div class="title">
+        <div class="name">${type}</div>
+        <div class="close" title="Delete">×</div>
+      </div>
+      <div class="node-content">
+        <div class="pins-col inputs"></div>
+        <div class="gate-sign-wrap">${gateSignSvg(type)}</div>
+        <div class="pins-col outputs"></div>
+      </div>
+    `;
+
+    const inputsWrap = nodeEl.querySelector('.inputs');
+    const outputsWrap = nodeEl.querySelector('.outputs');
+
+    // Pins
+    for(let i=0;i<spec.inputs;i++){
+      const pin = document.createElement('div');
+      pin.className = 'pin input';
+      pin.dataset.pin = i;
+      const label = i===0 ? 'A' : 'B';
+      pin.innerHTML = `<span class="pin-label">${label}</span><span class="bubble" title="Input ${label}"></span>`;
+      inputsWrap.appendChild(pin);
+    }
+    for(let i=0;i<spec.outputs;i++){
+      const pin = document.createElement('div');
+      pin.className = 'pin output';
+      pin.dataset.pin = i;
+      pin.innerHTML = `<span class="bubble" title="Output Q"></span><span class="pin-label">Q</span>`;
+      outputsWrap.appendChild(pin);
+    }
+
+    // Special behaviors
+    if(type==='INPUT'){
+      nodeEl.querySelector('.pin.output .bubble').addEventListener('click', ()=>{
+        const n = nodes.get(id);
+        n.state = n.state?0:1;
+        updatePinBubble(nodeEl.querySelector('.pin.output'), n.state);
+        propagateFromNode(id);
+      });
+    }
+
+    // Manual input testing on un-wired inputs
+    nodeEl.querySelectorAll('.pin.input .bubble').forEach(bub=>{
+      bub.addEventListener('click', (e)=>{
+        const nodeId = nodeEl.dataset.id;
+        const pinIndex = parseInt(e.currentTarget.parentElement.dataset.pin,10);
+        const incoming = (inputsOf.get(nodeId)||new Map()).get(pinIndex);
+        if(incoming) return; // ignore if wired
+        const n = nodes.get(nodeId);
+        n.manualInputs ||= {};
+        n.manualInputs[pinIndex] = n.manualInputs[pinIndex]?0:1;
+        updatePinBubble(e.currentTarget.parentElement, n.manualInputs[pinIndex]);
+        computeAndPropagate(nodeId);
+      });
+    });
+
+    // Dragging nodes
+    enableNodeDrag(nodeEl);
+
+    // Delete node
+    nodeEl.querySelector('.close').addEventListener('click', ()=> deleteNode(id));
+
+    canvas.appendChild(nodeEl);
+
+    // Init state
+    const nodeData = {
+      id, type,
+      x, y,
+      el: nodeEl,
+      state: (type==='INPUT')?0:0,
+      manualInputs: {},  // for manual testing when not wired
+    };
+    nodes.set(id, nodeData);
+    outputsOf.set(id, []);
+    inputsOf.set(id, new Map());
+
+    refreshNodeUI(id);
+    updateCounts();
+    computeAll();
+    return id;
+  }
+
+  function deleteNode(id){
+    const out = outputsOf.get(id)||[];
+    out.slice().forEach(edgeId=> deleteWire(edgeId));
+    const inMap = inputsOf.get(id)||new Map();
+    [...inMap.values()].forEach(edgeId=> deleteWire(edgeId));
+    const node = nodes.get(id);
+    if(node && node.el && node.el.parentNode) node.el.parentNode.removeChild(node.el);
+    nodes.delete(id);
+    outputsOf.delete(id);
+    inputsOf.delete(id);
+    updateCounts();
+    computeAll();
+  }
+
+  function enableNodeDrag(nodeEl){
+    let dragging=false, startX=0, startY=0, baseX=0, baseY=0;
+
+    nodeEl.addEventListener('pointerdown', e=>{
+      if(e.button!==0) return;
+      dragging = true;
+      nodeEl.setPointerCapture(e.pointerId);
+      nodeEl.classList.add('selected');
+      startX=e.clientX; startY=e.clientY;
+      baseX=parseFloat(nodeEl.style.left)||0;
+      baseY=parseFloat(nodeEl.style.top)||0;
+    });
+
+    nodeEl.addEventListener('pointermove', e=>{
+      if(!dragging) return;
+      const dx=e.clientX-startX, dy=e.clientY-startY;
+      let nx = baseX+dx, ny=baseY+dy;
+      if(snap){ nx=Math.round(nx/GRID)*GRID; ny=Math.round(ny/GRID)*GRID; }
+      nodeEl.style.left = nx+'px';
+      nodeEl.style.top  = ny+'px';
+      const id = nodeEl.dataset.id;
+      const n = nodes.get(id);
+      n.x = nx; n.y = ny;
+      redrawWires();
+    });
+
+    nodeEl.addEventListener('pointerup', e=>{
+      if(!dragging) return;
+      dragging=false;
+      nodeEl.releasePointerCapture(e.pointerId);
+      nodeEl.classList.remove('selected');
+    });
+  }
+
+  // Wiring: drag from output bubble to input bubble
+  let linkDrag = null;
+
+  canvas.addEventListener('pointerdown', e=>{
+    const bubble = e.target.closest('.pin.output .bubble');
+    if(!bubble) return;
+    const nodeEl = e.target.closest('.node');
+    const fromNode = nodeEl.dataset.id;
+    const fromPin  = parseInt(bubble.parentElement.dataset.pin,10);
+    linkDrag = { fromNode, fromPin, pathEl: createGhostPath() };
+    updateGhostPath(e.clientX, e.clientY, fromNode, fromPin);
+  });
+  window.addEventListener('pointermove', e=>{
+    if(!linkDrag) return;
+    updateGhostPath(e.clientX, e.clientY, linkDrag.fromNode, linkDrag.fromPin);
+  });
+  window.addEventListener('pointerup', e=>{
+    if(!linkDrag) return;
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const bubble = target && target.closest && target.closest('.pin.input .bubble');
+    const endOnInput = bubble && bubble.closest('.node');
+    if(endOnInput){
+      const toNode = endOnInput.dataset.id;
+      const toPin = parseInt(bubble.parentElement.dataset.pin,10);
+      const existing = inputsOf.get(toNode).get(toPin);
+      if(existing) deleteWire(existing);
+      createWire(linkDrag.fromNode, linkDrag.fromPin, toNode, toPin);
+    }
+    if(linkDrag.pathEl && linkDrag.pathEl.parentNode) linkDrag.pathEl.parentNode.removeChild(linkDrag.pathEl);
+    linkDrag = null;
+  });
+
+  function createGhostPath(){
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('class', 'ghost');
+    wiresSvg.appendChild(p);
+    return p;
+  }
+  function updateGhostPath(clientX, clientY, fromNode, fromPin){
+    const from = pinCenter(nodes.get(fromNode).el.querySelector(`.pin.output[data-pin="${fromPin}"] .bubble`));
+    const to = canvasPoint(clientX, clientY);
+    linkDrag.pathEl.setAttribute('d', bezierPath(from, to));
+  }
+
+  function createWire(fromNode, fromPin, toNode, toPin){
+    const id = `e${idCounter++}`;
+    edges.set(id, {id, from:{node:fromNode, pin:fromPin}, to:{node:toNode, pin:toPin}});
+    outputsOf.get(fromNode).push(id);
+    inputsOf.get(toNode).set(toPin, id);
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('class','wire');
+    path.dataset.id = id;
+    path.addEventListener('contextmenu', (e)=>{ e.preventDefault(); deleteWire(id); });
+    wiresSvg.appendChild(path);
+    redrawWires();
+    updateCounts();
+    computeAll();
+    return id;
+  }
+
+  function deleteWire(id){
+    const edge = edges.get(id);
+    if(!edge) return;
+    const outs = outputsOf.get(edge.from.node);
+    if(outs){
+      const i = outs.indexOf(id);
+      if(i>=0) outs.splice(i,1);
+    }
+    const inMap = inputsOf.get(edge.to.node);
+    if(inMap && inMap.get(edge.to.pin)===id){
+      inMap.delete(edge.to.pin);
+    }
+    const el = wiresSvg.querySelector(`path.wire[data-id="${id}"]`);
+    if(el && el.parentNode) el.parentNode.removeChild(el);
+    edges.delete(id);
+    updateCounts();
+    computeAll();
+  }
+
+  // Geometry
+  function canvasPoint(clientX, clientY){
+    const r = canvas.getBoundingClientRect();
+    return { x: clientX - r.left, y: clientY - r.top };
+  }
+  function pinCenter(bubbleEl){
+    const br = bubbleEl.getBoundingClientRect();
+    const cr = canvas.getBoundingClientRect();
+    return { x: br.left - cr.left + br.width/2, y: br.top - cr.top + br.height/2 };
+  }
+  function bezierPath(a, b){
+    const dx = Math.max(40, Math.abs(b.x - a.x)*0.5);
+    const c1x = a.x + dx, c1y = a.y;
+    const c2x = b.x - dx, c2y = b.y;
+    return `M ${a.x} ${a.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${b.x} ${b.y}`;
+  }
+
+  function redrawWires(){
+    ensureSvgSize();
+    edges.forEach(edge=>{
+      const fromEl = nodes.get(edge.from.node).el.querySelector(`.pin.output[data-pin="${edge.from.pin}"] .bubble`);
+      const toEl   = nodes.get(edge.to.node).el.querySelector(`.pin.input[data-pin="${edge.to.pin}"] .bubble`);
+      const a = pinCenter(fromEl);
+      const b = pinCenter(toEl);
+      const pathEl = wiresSvg.querySelector(`path.wire[data-id="${edge.id}"]`);
+      if(pathEl){
+        pathEl.setAttribute('d', bezierPath(a,b));
+      }
+    });
+    colorWiresBySignal();
+  }
+
+  function updateCounts(){
+    countNodes.textContent = nodes.size;
+    countWires.textContent = edges.size;
+  }
+
+  function updatePinBubble(pinElOrWrapper, value){
+    const pinEl = pinElOrWrapper.classList.contains('pin') ? pinElOrWrapper : pinElOrWrapper.closest('.pin');
+    pinEl.classList.toggle('b1', !!value);
+  }
+
+  function refreshNodeUI(id){
+    const n = nodes.get(id);
+    if(!n) return;
+    const el = n.el;
+
+    // Inputs reflect live values (wired or manual)
+    const inMap = inputsOf.get(id);
+    el.querySelectorAll('.pin.input').forEach(pin=>{
+      const idx = parseInt(pin.dataset.pin,10);
+      const wired = inMap && inMap.has(idx);
+      const v = wired ? getInputValue(id, idx) : (n.manualInputs[idx]||0);
+      updatePinBubble(pin, v);
+    });
+
+    // Output bubble lights based on node output (for nodes with outputs)
+    const outPin = el.querySelector('.pin.output');
+    if(outPin){
+      updatePinBubble(outPin, evalNode(id));
+    }
+
+    // OUTPUT node title shows value
+    if(n.type==='OUTPUT'){
+      let title = el.querySelector('.title .name');
+      title.textContent = `OUTPUT: ${evalNode(n.id)??0}`;
+    }
+  }
+
+  // Logic evaluation
+  function getInputValue(nodeId, pinIdx){
+    const edgeId = inputsOf.get(nodeId).get(pinIdx);
+    if(!edgeId) return 0;
+    const from = edges.get(edgeId).from;
+    return evalNode(from.node);
+  }
+
+  function evalNode(id, memo){
+    memo ||= new Map();
+    if(memo.has(id)) return memo.get(id);
+    const n = nodes.get(id);
+    if(!n) return 0;
+    let out = 0;
+    switch(n.type){
+      case 'INPUT':
+        out = n.state?1:0;
+        break;
+      case 'OUTPUT': {
+        const v = getInputValue(id, 0);
+        out = v?1:0;
+        break;
+      }
+      case 'NOT': {
+        const a = getInputValue(id, 0) || 0;
+        out = a?0:1;
+        break;
+      }
+      case 'AND': {
+        const a = getInputValue(id, 0) || 0;
+        const b = getInputValue(id, 1) || 0;
+        out = (a && b)?1:0;
+        break;
+      }
+      case 'OR': {
+        const a = getInputValue(id, 0) || 0;
+        const b = getInputValue(id, 1) || 0;
+        out = (a || b)?1:0;
+        break;
+      }
+      case 'NAND': {
+        const a = getInputValue(id, 0) || 0;
+        const b = getInputValue(id, 1) || 0;
+        out = (a && b)?0:1;
+        break;
+      }
+      case 'NOR': {
+        const a = getInputValue(id, 0) || 0;
+        const b = getInputValue(id, 1) || 0;
+        out = (a || b)?0:1;
+        break;
+      }
+      default: out = 0;
+    }
+    memo.set(id, out);
+    return out;
+  }
+
+  function propagateFromNode(){ computeAll(); }
+  function computeAndPropagate(){ computeAll(); }
+
+  function computeAll(){
+    const cyclic = detectCycle();
+    simStatus.textContent = cyclic ? 'Feedback Detected' : 'Stable';
+    simStatus.classList.toggle('warn', cyclic);
+    simStatus.classList.toggle('good', !cyclic);
+
+    nodes.forEach((n)=> refreshNodeUI(n.id));
+    colorWiresBySignal();
+  }
+
+  function colorWiresBySignal(){
+    edges.forEach(edge=>{
+      const v = evalNode(edge.from.node);
+      const pathEl = wiresSvg.querySelector(`path.wire[data-id="${edge.id}"]`);
+      if(!pathEl) return;
+      pathEl.classList.toggle('active', !!v);
+    });
+  }
+
+  function detectCycle(){
+    const graph = {};
+    nodes.forEach((_, id)=> graph[id]=[]);
+    edges.forEach(e=>{ graph[e.from.node].push(e.to.node); });
+    const visited = new Set();
+    const stack = new Set();
+    function dfs(u){
+      if(stack.has(u)) return true;
+      if(visited.has(u)) return false;
+      visited.add(u); stack.add(u);
+      for(const v of graph[u]){ if(dfs(v)) return true; }
+      stack.delete(u);
+      return false;
+    }
+    for(const id of Object.keys(graph)){
+      if(dfs(id)) return true;
+    }
+    return false;
+  }
+
+  // Buttons
+  btnReset.addEventListener('click', ()=>{
+    [...edges.keys()].forEach(id=> deleteWire(id));
+    [...nodes.keys()].forEach(id=> deleteNode(id));
+    // Starter scene
+    const in1 = createNode('INPUT', 160, 160);
+    const in2 = createNode('INPUT', 160, 260);
+    const and1 = createNode('AND', 420, 210);
+    const out1 = createNode('OUTPUT', 700, 210);
+    createWire(in1, 0, and1, 0);
+    createWire(in2, 0, and1, 1);
+    createWire(and1, 0, out1, 0);
+  });
+
+  btnClear.addEventListener('click', ()=>{
+    [...edges.keys()].forEach(id=> deleteWire(id));
+  });
+
+  btnExport.addEventListener('click', ()=>{
+    const data = {
+      nodes: [...nodes.values()].map(n=>({
+        id:n.id, type:n.type, x:n.x, y:n.y, state:n.state||0, manualInputs:n.manualInputs||{}
+      })),
+      edges: [...edges.values()]
+    };
+    const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'logic-sim.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  btnImport.addEventListener('click', ()=>{
+    const inp = document.createElement('input');
+    inp.type='file'; inp.accept='.json,application/json';
+    inp.addEventListener('change', ()=>{
+      const file = inp.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const data = JSON.parse(reader.result);
+          loadData(data);
+        }catch(err){
+          alert('Invalid JSON');
+        }
+      };
+      reader.readAsText(file);
+    });
+    inp.click();
+  });
+
+  function loadData(data){
+    [...edges.keys()].forEach(id=> deleteWire(id));
+    [...nodes.keys()].forEach(id=> deleteNode(id));
+    idCounter = 1;
+    const idMap = new Map();
+    (data.nodes||[]).forEach(nd=>{
+      const nid = createNode(nd.type, nd.x||0, nd.y||0);
+      const n = nodes.get(nid);
+      n.state = nd.state||0;
+      n.manualInputs = nd.manualInputs||{};
+      refreshNodeUI(nid);
+      idMap.set(nd.id, nid);
+    });
+    (data.edges||[]).forEach(e=>{
+      const fromNode = idMap.get(e.from.node);
+      const toNode   = idMap.get(e.to.node);
+      if(fromNode && toNode) createWire(fromNode, e.from.pin, toNode, e.to.pin);
+    });
+    computeAll();
+  }
+
+  snapToggle.addEventListener('click', ()=>{
+    snap = !snap;
+    snapToggle.classList.toggle('active', snap);
+    snapState.textContent = snap ? 'On' : 'Off';
+  });
+
+  // Gate sign SVGs
+  function gateSignSvg(type){
+    // All in 100x60 internal viewBox for consistent shapes, scaled by CSS
+    switch(type){
+      case 'AND': return `
+        <svg viewBox="0 0 100 60" aria-label="AND gate">
+          <path class="sign-stroke" d="M15 10 L45 10 L45 50 L15 50 Z" />
+          <path class="sign-stroke" d="M45 10 A20 20 0 0 1 45 50" />
+          <line class="sign-stroke" x1="5" y1="20" x2="15" y2="20"/>
+          <line class="sign-stroke" x1="5" y1="40" x2="15" y2="40"/>
+          <line class="sign-stroke" x1="65" y1="30" x2="85" y2="30"/>
+        </svg>`;
+      case 'NAND': return `
+        <svg viewBox="0 0 110 60" aria-label="NAND gate">
+          <path class="sign-stroke" d="M15 10 L45 10 L45 50 L15 50 Z" />
+          <path class="sign-stroke" d="M45 10 A20 20 0 0 1 45 50" />
+          <circle class="sign-bubble" cx="73" cy="30" r="4"/>
+          <line class="sign-stroke" x1="77" y1="30" x2="100" y2="30"/>
+          <line class="sign-stroke" x1="5" y1="20" x2="15" y2="20"/>
+          <line class="sign-stroke" x1="5" y1="40" x2="15" y2="40"/>
+        </svg>`;
+      case 'OR': return `
+        <svg viewBox="0 0 110 60" aria-label="OR gate">
+          <path class="sign-stroke" d="M15 10 Q40 10 55 30 Q40 50 15 50" />
+          <path class="sign-stroke" d="M25 10 Q55 30 25 50" />
+          <line class="sign-stroke" x1="5" y1="20" x2="20" y2="20"/>
+          <line class="sign-stroke" x1="5" y1="40" x2="20" y2="40"/>
+          <line class="sign-stroke" x1="70" y1="30" x2="100" y2="30"/>
+        </svg>`;
+      case 'NOR': return `
+        <svg viewBox="0 0 120 60" aria-label="NOR gate">
+          <path class="sign-stroke" d="M20 10 Q45 10 60 30 Q45 50 20 50" />
+          <path class="sign-stroke" d="M30 10 Q60 30 30 50" />
+          <circle class="sign-bubble" cx="80" cy="30" r="4"/>
+          <line class="sign-stroke" x1="84" y1="30" x2="110" y2="30"/>
+          <line class="sign-stroke" x1="5" y1="20" x2="20" y2="20"/>
+          <line class="sign-stroke" x1="5" y1="40" x2="20" y2="40"/>
+        </svg>`;
+      case 'NOT': return `
+        <svg viewBox="0 0 110 60" aria-label="NOT gate">
+          <path class="sign-stroke" d="M15 10 L65 30 L15 50 Z" />
+          <circle class="sign-bubble" cx="75" cy="30" r="4"/>
+          <line class="sign-stroke" x1="5" y1="30" x2="15" y2="30"/>
+          <line class="sign-stroke" x1="79" y1="30" x2="100" y2="30"/>
+        </svg>`;
+      case 'INPUT': return `
+        <svg viewBox="0 0 110 60" aria-label="INPUT source">
+          <rect class="sign-stroke" x="10" y="15" width="50" height="30" />
+          <text x="35" y="36" fill="#cfe0ff" font-size="14" text-anchor="middle" font-family="monospace">IN</text>
+          <line class="sign-stroke" x1="60" y1="30" x2="100" y2="30"/>
+        </svg>`;
+      case 'OUTPUT': return `
+        <svg viewBox="0 0 110 60" aria-label="OUTPUT sink">
+          <rect class="sign-stroke" x="50" y="15" width="50" height="30" />
+          <text x="75" y="36" fill="#cfe0ff" font-size="14" text-anchor="middle" font-family="monospace">OUT</text>
+          <line class="sign-stroke" x1="10" y1="30" x2="50" y2="30"/>
+        </svg>`;
+      default: return `<svg viewBox="0 0 100 60"><rect class="sign-stroke" x="10" y="10" width="80" height="40"/></svg>`;
+    }
+  }
+
+  // Init
+  btnReset.click();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ohm's Law Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to bottom, #1a2980, #26d0ce);
+            color: #333;
+        }
+        #container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            width: 320px;
+            backdrop-filter: blur(10px);
+        }
+        .slider-container {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #1a2980, #26d0ce);
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #1a2980;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .value-display {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        #graph-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 500px;
+            height: 280px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: #1a2980;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .formula {
+            text-align: center;
+            font-size: 24px;
+            margin: 15px 0;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .instructions {
+            font-size: 14px;
+            color: #7f8c8d;
+            text-align: center;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <div id="ui">
+        <h2>Ohm's Law Simulation</h2>
+        <div class="formula">V = I × R</div>
+        
+        <div class="slider-container">
+            <label for="voltage">Voltage (V):</label>
+            <input type="range" id="voltage" min="1" max="100" value="12" step="1">
+            <div class="value-display"><span id="voltage-value">12</span> volts</div>
+        </div>
+        
+        <div class="slider-container">
+            <label for="resistance">Resistance (R):</label>
+            <input type="range" id="resistance" min="1" max="100" value="4" step="1">
+            <div class="value-display"><span id="resistance-value">4</span> ohms</div>
+        </div>
+        
+        <div class="result">
+            <label>Current (I):</label>
+            <div class="value-display"><span id="current-value">3.00</span> amperes</div>
+        </div>
+        
+        <div class="instructions">
+            Adjust the sliders to see how voltage and resistance affect current flow
+        </div>
+    </div>
+    
+    <div id="graph-container">
+        <canvas id="graph"></canvas>
+    </div>
+
+    <script>
+        // Add these constants at the beginning of the script section
+        const CONSTANTS = {
+    ELECTRON_COUNT: 25,
+    ELEMENTARY_CHARGE: 1.602e-19,
+    ELECTRON_MASS: 9.109e-31,
+    CIRCUIT_LENGTH: 18,
+    MAX_DATA_POINTS: 20,
+    UPDATE_INTERVAL: 5
+};
+
+        // Initialize Three.js scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf8f9fa);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 10;
+        camera.position.y = 3;
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+        
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+        
+        // Create circuit components
+        const batteryGeometry = new THREE.BoxGeometry(1, 3, 1);
+        const batteryMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x2E86C1,
+            emissive: 0x1A5276,
+            emissiveIntensity: 0.2
+        });
+        const battery = new THREE.Mesh(batteryGeometry, batteryMaterial);
+        battery.position.set(-5, 0, 0);
+        scene.add(battery);
+        
+        // Add battery terminals
+        const terminalGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+        const positiveTerminal = new THREE.Mesh(terminalGeometry, new THREE.MeshPhongMaterial({ color: 0xff0000 }));
+        positiveTerminal.position.set(-5, 1.7, 0);
+        scene.add(positiveTerminal);
+        
+        const negativeTerminal = new THREE.Mesh(terminalGeometry, new THREE.MeshPhongMaterial({ color: 0x0000ff }));
+        negativeTerminal.position.set(-5, -1.7, 0);
+        scene.add(negativeTerminal);
+        
+        // Create resistor
+        const resistorGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+        const resistorMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xF1C40F,
+            emissive: 0xB7950B,
+            emissiveIntensity: 0.1
+        });
+        const resistor = new THREE.Mesh(resistorGeometry, resistorMaterial);
+        resistor.position.set(2, 0, 0);
+        scene.add(resistor);
+        
+        // Add resistor bands
+        const bandGeometry = new THREE.TorusGeometry(0.52, 0.05, 16, 32);
+        const bandMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
+        
+        for (let i = -0.3; i <= 0.3; i += 0.2) {
+            const band = new THREE.Mesh(bandGeometry, bandMaterial);
+            band.position.set(2, i, 0);
+            band.rotation.x = Math.PI / 2;
+            scene.add(band);
+        }
+        
+        // Create wires
+        const wireMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 3 });
+        
+        // Wire from battery to resistor
+        const points1 = [];
+        points1.push(new THREE.Vector3(-4, 1.5, 0));
+        points1.push(new THREE.Vector3(0, 1.5, 0));
+        points1.push(new THREE.Vector3(0, 0.5, 0));
+        points1.push(new THREE.Vector3(1.5, 0.5, 0));
+        
+        const wireGeometry1 = new THREE.BufferGeometry().setFromPoints(points1);
+        const wire1 = new THREE.Line(wireGeometry1, wireMaterial);
+        scene.add(wire1);
+        
+        // Wire from resistor back to battery
+        const points2 = [];
+        points2.push(new THREE.Vector3(1.5, -0.5, 0));
+        points2.push(new THREE.Vector3(0, -0.5, 0));
+        points2.push(new THREE.Vector3(0, -1.5, 0));
+        points2.push(new THREE.Vector3(-4, -1.5, 0));
+        
+        const wireGeometry2 = new THREE.BufferGeometry().setFromPoints(points2);
+        const wire2 = new THREE.Line(wireGeometry2, wireMaterial);
+        scene.add(wire2);
+        
+        // Create electrons with enhanced physics properties
+        const electrons = [];
+        
+        class Electron {
+            constructor() {
+                this.mesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.08, 16, 16),
+                    new THREE.MeshPhongMaterial({
+                        color: 0x3498DB,
+                        emissive: 0x2980B9,
+                        emissiveIntensity: 0.5,
+                        transparent: true,
+                        opacity: 0.8
+                    })
+                );
+                
+                this.position = Math.random() * CONSTANTS.CIRCUIT_LENGTH;
+                this.velocity = 0;
+                this.acceleration = 0;
+                this.energy = 0;
+                
+                // Add glow effect
+                this.addGlow();
+            }
+
+            addGlow() {
+                const glowGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+                const glowMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x3498DB,
+                    transparent: true,
+                    opacity: 0.3,
+                    blending: THREE.AdditiveBlending
+                });
+                this.glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                this.mesh.add(this.glow);
+            }
+
+            updatePhysics(voltage, resistance, deltaTime) {
+                const electricField = voltage / CONSTANTS.CIRCUIT_LENGTH;
+                const dampingFactor = 1 / (resistance * 10);
+                
+                // Improved physics calculations
+                this.acceleration = (CONSTANTS.ELEMENTARY_CHARGE * electricField) / CONSTANTS.ELECTRON_MASS;
+                this.acceleration *= dampingFactor;
+                
+                // Add some randomness for more natural movement
+                this.acceleration += (Math.random() - 0.5) * 0.0001;
+                
+                // Update velocity with smoother acceleration
+                this.velocity += this.acceleration * deltaTime;
+                const maxVelocity = 0.15 * voltage / resistance;
+                this.velocity = THREE.MathUtils.clamp(this.velocity, -maxVelocity, maxVelocity);
+                
+                // Update position with smooth wrapping
+                this.position = (this.position - this.velocity * deltaTime) % CONSTANTS.CIRCUIT_LENGTH;
+                if (this.position < 0) this.position += CONSTANTS.CIRCUIT_LENGTH;
+                
+                // Update visual effects
+                this.updateVisuals(voltage, resistance);
+            }
+
+            updateVisuals(voltage, resistance) {
+                const energyLevel = Math.abs(this.velocity) / (0.15 * voltage / resistance);
+                this.mesh.material.emissiveIntensity = 0.5 + energyLevel * 0.5;
+                this.glow.material.opacity = 0.3 + energyLevel * 0.2;
+                this.mesh.scale.setScalar(0.8 + energyLevel * 0.4);
+            }
+
+            calculatePosition(t) {
+                const pos = new THREE.Vector3();
+                const curvePoints = this.getCurvePoints(t);
+                return this.interpolateCurve(curvePoints, t);
+            }
+
+            getCurvePoints(t) {
+                // Define curve segments
+                const curves = {
+                    batteryToFirstBend: { start: 0, end: 4, fn: (t) => new THREE.Vector3(-4 + t, 1.5, 0) },
+                    verticalSection: { start: 4, end: 8, fn: (t) => new THREE.Vector3(0, 1.5 - (t - 4), 0) },
+                    approachResistor: { start: 8, end: 9.5, fn: (t) => new THREE.Vector3((t - 8) * 1.5, -0.5, 0) },
+                    throughResistor: { start: 9.5, end: 10.5, fn: (t) => {
+                        const angle = (t - 9.5) * Math.PI;
+                        return new THREE.Vector3(
+                            2 + Math.cos(angle) * 0.6,
+                            Math.sin(angle) * 0.6,
+                            0
+                        );
+                    }},
+                    exitResistor: { start: 10.5, end: 12, fn: (t) => new THREE.Vector3(1.5 - (t - 10.5) * 1.5, -0.5, 0) },
+                    verticalReturn: { start: 12, end: 16, fn: (t) => new THREE.Vector3(0, -0.5 - (t - 12), 0) },
+                    returnToBattery: { start: 16, end: 18, fn: (t) => new THREE.Vector3(-(t - 16), -1.5, 0) }
+                };
+
+                // Find current curve segment
+                for (const [_, curve] of Object.entries(curves)) {
+                    if (t >= curve.start && t < curve.end) {
+                        return curve.fn(t);
+                    }
+                }
+                return curves.batteryToFirstBend.fn(0);
+            }
+
+            interpolateCurve(point, t) {
+                // Add slight oscillation for more natural movement
+                const oscillation = Math.sin(Date.now() * 0.005 + t * 5) * 0.02;
+                point.z += oscillation;
+                return point;
+            }
+
+            updatePosition() {
+                const pos = this.calculatePosition(this.position);
+                this.mesh.position.copy(pos);
+            }
+        }
+
+        // Create electron instances
+        for (let i = 0; i < CONSTANTS.ELECTRON_COUNT; i++) {
+            const electron = new Electron();
+            scene.add(electron.mesh);
+            electrons.push(electron);
+        }
+        
+        // Initialize Chart.js for graphing
+        const ctx = document.getElementById('graph').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Current (A) vs Voltage (V)',
+                    data: [],
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: 'rgba(41, 128, 185, 1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Voltage (V)',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Current (A)',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        titleFont: {
+                            size: 14
+                        },
+                        bodyFont: {
+                            size: 14
+                        }
+                    }
+                }
+            });
+        
+        // Store historical data for the graph
+        const graphData = [];
+        let dataPointsCounter = 0;
+        
+        // Update simulation based on slider values
+        const voltageSlider = document.getElementById('voltage');
+        const resistanceSlider = document.getElementById('resistance');
+        const voltageValue = document.getElementById('voltage-value');
+        const resistanceValue = document.getElementById('resistance-value');
+        const currentValue = document.getElementById('current-value');
+        
+        function updateSimulation() {
+            const voltage = parseFloat(voltageSlider.value);
+            const resistance = parseFloat(resistanceSlider.value);
+            const current = voltage / resistance;
+            
+            // Update display values
+            voltageValue.textContent = voltage;
+            resistanceValue.textContent = resistance;
+            currentValue.textContent = current.toFixed(2);
+            
+            // Update electron speed based on current
+            const baseSpeed = 0.02;
+            electrons.forEach(electron => {
+                electron.speed = baseSpeed * current;
+            });
+            
+            // Update resistor appearance based on resistance
+            const resistanceFactor = resistance / 100;
+            resistorMaterial.emissiveIntensity = 0.1 + resistanceFactor * 0.4;
+            
+            // Update battery appearance based on voltage
+            const voltageFactor = voltage / 100;
+            batteryMaterial.emissiveIntensity = 0.2 + voltageFactor * 0.6;
+            
+            // Add data point to graph (every 5 updates to prevent overcrowding)
+            dataPointsCounter++;
+            if (dataPointsCounter % 5 === 0) {
+                graphData.push({ voltage, current });
+                
+                // Keep only the last 20 data points
+                if (graphData.length > 20) {
+                    graphData.shift();
+                }
+                
+                // Update chart
+                chart.data.labels = graphData.map(point => point.voltage.toFixed(1));
+                chart.data.datasets[0].data = graphData.map(point => point.current);
+                chart.update();
+                
+                dataPointsCounter = 0;
+            }
+        }
+        
+        voltageSlider.addEventListener('input', updateSimulation);
+        resistanceSlider.addEventListener('input', updateSimulation);
+        
+        // Initial update
+        updateSimulation();
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const voltage = parseFloat(voltageSlider.value);
+            const resistance = parseFloat(resistanceSlider.value);
+            const deltaTime = 0.016; // Assuming 60fps
+
+            // Update electron physics
+            electrons.forEach(electron => {
+                electron.updatePhysics(voltage, resistance, deltaTime);
+                electron.updatePosition();
+            });
+
+            // Rotate resistor
+            resistor.rotation.y += 0.005;
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Start animation
+        animate();
+
+        // Add this function for better performance monitoring
+function initPerformanceMonitoring() {
+    let lastTime = performance.now();
+    let frames = 0;
+    
+    function checkFPS() {
+        frames++;
+        const time = performance.now();
+        
+        if (time >= lastTime + 1000) {
+            const fps = Math.round((frames * 1000) / (time - lastTime));
+            console.log(`Current FPS: ${fps}`);
+            frames = 0;
+            lastTime = time;
+        }
+        requestAnimationFrame(checkFPS);
+    }
+    
+    checkFPS();
+}
+
+// Add this call after the animate() function
+initPerformanceMonitoring();
+    </script>
+</body>
+</html>

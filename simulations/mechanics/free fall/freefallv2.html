@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Free‑Fall Simulator — Realistic Bounce & Media Resistance</title>
+  <style>
+    :root {
+      --bg: #0b1020; --panel:#121933; --panel-2:#0e1530; --text:#e7ecf6; --muted:#a8b3cf;
+      --accent:#6ee7ff; --accent-2:#8b5cf6; --good:#22c55e; --warn:#f59e0b; --grid:#243056;
+    }
+    * { box-sizing: border-box }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 70% -10%, #1b2350 0%, #0b1020 60%) fixed;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    
+    .app {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 16px;
+      width: 100%;
+      max-width: 1600px;
+      height: 90vh;
+      min-height: 720px;
+      max-height: 900px;
+    }
+    
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid #243056;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      overflow: hidden;
+    }
+    
+    .side {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: auto;
+    }
+    
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .row label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .row input[type="number"], .row select {
+      width: 150px;
+      background: #0c1433;
+      color: var(--text);
+      border: 1px solid #293a6b;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    
+    .row input[type="checkbox"] {
+      transform: scale(1.15);
+    }
+    
+    .btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      border: 1px solid #2a3b6c;
+      background: linear-gradient(180deg, #13224d, #0e1b3f);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .05s ease;
+      font-size: 13px;
+    }
+    
+    button:active { transform: scale(0.98) }
+    button.primary { border-color: #3ba0ff; background: linear-gradient(180deg, #1a5cff, #1648c7) }
+    button.good { border-color: #1b7b49; background: linear-gradient(180deg, #1aa05a, #167c46) }
+    button.warn { border-color: #8a6b14; background: linear-gradient(180deg, #caa21c, #9c7c16) }
+    
+    .hint {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    
+    .main {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+      height: 100%;
+    }
+    
+    .status {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+    
+    .card {
+      background: linear-gradient(180deg, #0b122b, #0a1026);
+      border: 1px solid #263a6b;
+      border-radius: 14px;
+      padding: 10px;
+      min-width: 0;
+    }
+    
+    .card .k {
+      font-size: 11px;
+      color: #a6b8e6;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .card .v {
+      font-size: 18px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .split {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+    
+    canvas {
+      display: block;
+      background: linear-gradient(180deg, #0a1024, #0b1126);
+      border: 1px solid #273a6c;
+      border-radius: 14px;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    .world-wrap {
+      position: relative;
+      height: 100%;
+    }
+    
+    .axis-label {
+      position: absolute;
+      right: 6px;
+      top: 6px;
+      font-size: 12px;
+      color: #a6b8e6;
+    }
+    
+    .tag {
+      position: absolute;
+      left: 12px;
+      top: 10px;
+      font-size: 12px;
+      color: #a8b3cf;
+      background: #0c1433aa;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid #293a6b;
+    }
+    
+    .log {
+      flex: 1;
+      min-height: 120px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      background: #0a1024;
+      border-radius: 12px;
+      border: 1px solid #24335a;
+      padding: 8px;
+    }
+    
+    .footer {
+      font-size: 12px;
+      color: #9fb3d9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+    
+    .chart-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      gap: 8px;
+    }
+    
+    @media (max-width: 1200px) {
+      .app {
+        grid-template-columns: 1fr;
+        height: auto;
+        max-height: none;
+        min-height: 0;
+      }
+      
+      .status {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      
+      .split {
+        grid-template-columns: 1fr;
+      }
+      
+      .world-wrap {
+        height: 60vh;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .app {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      
+      .status {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel side">
+    <h2>Simulation Controls</h2>
+
+    <div class="row"><label>Preset gravity</label>
+      <select id="presetG">
+        <option value="9.81">Earth (9.81 m/s²)</option>
+        <option value="1.62">Moon (1.62 m/s²)</option>
+        <option value="3.71">Mars (3.71 m/s²)</option>
+        <option value="24.79">Jupiter (24.79 m/s²)</option>
+        <option value="-9.81">Earth (upwards) −9.81</option>
+      </select>
+    </div>
+
+    <div class="row"><label>g (m/s²)</label><input id="g" type="number" step="0.01" value="9.81"></div>
+    <div class="row"><label>Initial height h₀ (m)</label><input id="h0" type="number" step="0.01" value="50"></div>
+    <div class="row"><label>Initial velocity v₀ (m/s, +up)</label><input id="v0" type="number" step="0.01" value="0"></div>
+    <div class="row"><label>Time step Δt (s)</label><input id="dt" type="number" step="0.001" value="0.005"></div>
+    <div class="row"><label>Time scale (×)</label><input id="timeScale" type="number" step="0.1" value="1"></div>
+
+    <h2>Object</h2>
+    <div class="row"><label>Mass m (kg)</label><input id="mass" type="number" step="0.01" value="1"></div>
+    <div class="row"><label>Diameter D (m)</label><input id="diam" type="number" step="0.001" value="0.10"></div>
+    <div class="row"><label>Restitution e (0–1)</label><input id="e" type="number" min="0" max="1" step="0.01" value="0.80"></div>
+
+    <h2>Medium</h2>
+    <div class="row"><label>Preset medium</label>
+      <select id="mediumPreset">
+        <option value="vacuum">Vacuum</option>
+        <option value="air" selected>Air (sea level)</option>
+        <option value="water">Water (fresh)</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div class="row"><label>Density ρ (kg/m³)</label><input id="rho" type="number" step="0.001" value="1.225"></div>
+    <div class="row"><label>Viscosity μ (Pa·s)</label><input id="mu" type="number" step="0.000001" value="0.0000181"></div>
+    <div class="row"><label>Drag coefficient C<sub>d</sub></label><input id="cd" type="number" step="0.01" value="0.47"></div>
+    <div class="row"><label>Drag model</label>
+      <select id="dragModel">
+        <option value="quadratic" selected>Quadratic (v|v|)</option>
+        <option value="linear">Linear (Stokes)</option>
+      </select>
+    </div>
+    <div class="row"><label>Buoyancy</label><input id="buoyOn" type="checkbox" checked></div>
+
+    <div class="btns">
+      <button class="primary" id="btnStart">Start</button>
+      <button id="btnPause">Pause</button>
+      <button class="warn" id="btnStep">Step</button>
+      <button class="good" id="btnReset">Reset</button>
+      <button id="btnExport">Export CSV</button>
+      <button id="btnSnapshot">PNG Snapshot</button>
+    </div>
+
+    <div class="hint">Realistic touches: semi‑implicit Euler, restitution for bouncy contact, quadratic/linear drag, and buoyancy (air or water). Terminal velocity is computed and shown live.</div>
+
+    <h2>Event Log</h2>
+    <div id="log" class="log" aria-live="polite"></div>
+    <div class="footer"><span>Single‑file · offline</span><span>v1.2</span></div>
+  </aside>
+
+  <main class="panel main" aria-label="Visualization and readouts">
+    <section class="status">
+      <div class="card"><div class="k">t (s)</div><div id="statT" class="v">0.00</div></div>
+      <div class="card"><div class="k">y (m)</div><div id="statY" class="v">50.00</div></div>
+      <div class="card"><div class="k">v (m/s)</div><div id="statV" class="v">0.00</div></div>
+      <div class="card"><div class="k">a (m/s²)</div><div id="statA" class="v">-9.81</div></div>
+      <div class="card"><div class="k">h<sub>max</sub> (m)</div><div id="statHmax" class="v">50.00</div></div>
+      <div class="card"><div class="k">v<sub>impact,max</sub> (m/s)</div><div id="statImpact" class="v">—</div></div>
+      <div class="card"><div class="k">v<sub>terminal</sub> (m/s)</div><div id="statVT" class="v">—</div></div>
+    </section>
+
+    <section class="split">
+      <div class="world-wrap">
+        <div class="axis-label">y ↑ (m)</div>
+        <div id="mediumTag" class="tag">Air</div>
+        <canvas id="world" aria-label="World view"></canvas>
+      </div>
+      <div class="chart-container">
+        <div class="axis-label" style="position:relative;left:6px">t →</div>
+        <canvas id="chartPos" aria-label="Position vs time"></canvas>
+        <canvas id="chartVel" aria-label="Velocity vs time"></canvas>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  const $ = (id)=>document.getElementById(id);
+  const el = {
+    presetG: $('presetG'), g: $('g'), h0: $('h0'), v0: $('v0'), dt: $('dt'), timeScale: $('timeScale'),
+    mass: $('mass'), diam: $('diam'), e: $('e'),
+    mediumPreset: $('mediumPreset'), rho: $('rho'), mu: $('mu'), cd: $('cd'), dragModel: $('dragModel'), buoyOn: $('buoyOn'),
+    btnStart: $('btnStart'), btnPause: $('btnPause'), btnReset: $('btnReset'), btnStep: $('btnStep'), btnExport: $('btnExport'), btnSnapshot: $('btnSnapshot'),
+    log: $('log'), world: $('world'), chartPos: $('chartPos'), chartVel: $('chartVel'), mediumTag: $('mediumTag'),
+    statT: $('statT'), statY: $('statY'), statV: $('statV'), statA: $('statA'), statHmax: $('statHmax'), statImpact: $('statImpact'), statVT: $('statVT')
+  };
+
+  const state = { running:false, t:0, y:50, v:0, a:0, hmax:0, impactSpeed:null, ground:0, trace:[] };
+  const worldCfg = { padding: 44, metersVisible: 60 };
+
+  function log(msg){
+    const time = new Date().toLocaleTimeString();
+    const div = document.createElement('div');
+    div.textContent = `[${time}] ${msg}`;
+    el.log.prepend(div);
+  }
+
+  // helpers
+  const clamp=(x,min,max)=>Math.max(min,Math.min(max,x));
+  const round=(x,n=2)=>{const k=10**n; return Math.round(x*k)/k};
+
+  // physics core
+  function volumeSphere(d){ const r=d/2; return (4/3)*Math.PI*r*r*r; }
+  function areaSphere(d){ const r=d/2; return Math.PI*r*r; }
+  function terminalVelocity(){
+    const g = Math.abs(parseFloat(el.g.value));
+    const m = parseFloat(el.mass.value);
+    const d = parseFloat(el.diam.value);
+    const rho = parseFloat(el.rho.value);
+    const Cd = parseFloat(el.cd.value);
+    const mu = parseFloat(el.mu.value);
+    const A = areaSphere(d);
+    const V = volumeSphere(d);
+    const buoy = el.buoyOn.checked ? (rho*V*g) : 0; // upward
+    const gEff = g - buoy/m; // downward component magnitude
+    if (gEff <= 0) return 0;
+    if (el.dragModel.value === 'quadratic' && rho>0 && Cd>0 && A>0){
+      return Math.sqrt((2*m*gEff)/(rho*Cd*A));
+    } else {
+      // Stokes: F_d = 6π μ r v → v_t = m g_eff / (6π μ r)
+      const r = d/2; const k = 6*Math.PI*mu*r; if (k<=0) return Infinity; return (m*gEff)/k;
+    }
+  }
+
+  function stepSim(dt){
+    const g = parseFloat(el.g.value); // +down? No: we take +y up, so gravity is -g
+    const m = parseFloat(el.mass.value);
+    const d = parseFloat(el.diam.value);
+    const A = areaSphere(d);
+    const V = volumeSphere(d);
+    const rho = parseFloat(el.rho.value);
+    const Cd = parseFloat(el.cd.value);
+    const mu = parseFloat(el.mu.value);
+
+    // Gravity (down), buoyancy (up), drag opposite velocity
+    const Fg = -m * g;
+    const Fb = el.buoyOn.checked ? (rho * V * g) : 0; // up
+
+    let Fdrag = 0;
+    if (el.dragModel.value === 'quadratic'){
+      // 0.5 ρ C_d A v|v|, opposite sign of v
+      const mag = 0.5 * rho * Cd * A * state.v * Math.abs(state.v);
+      Fdrag = -Math.sign(state.v||0) * Math.abs(mag);
+    } else {
+      // Stokes linear drag: 6π μ r v
+      const k = 6 * Math.PI * mu * (d/2);
+      Fdrag = -k * state.v;
+    }
+
+    const Fnet = Fg + Fb + Fdrag;
+    const a = Fnet / m;
+
+    // Semi-implicit Euler keeps bounces stable at small dt
+    state.v += a * dt;
+    state.y += state.v * dt;
+    state.a = a;
+
+    // Ground collision at y=0 with restitution and small contact damping
+    const e = clamp(parseFloat(el.e.value)||0, 0, 1);
+    if (state.y <= state.ground){
+      // back out penetration
+      state.y = state.ground;
+      if (state.v < 0){
+        state.impactSpeed = Math.max(state.impactSpeed||0, Math.abs(state.v));
+        // reflect with restitution
+        state.v = -state.v * e;
+        // contact loss to avoid chattering when very slow
+        if (Math.abs(state.v) < 1e-3) state.v = 0;
+        log(`Bounce: e=${e.toFixed(2)}, v↑=${state.v.toFixed(3)} m/s`);
+      }
+    }
+
+    state.hmax = Math.max(state.hmax, state.y);
+    state.trace.push({t: state.t, y: state.y, v: state.v});
+  }
+
+  // rendering
+  const wctx = el.world.getContext('2d');
+  const pctx = el.chartPos.getContext('2d');
+  const vctx = el.chartVel.getContext('2d');
+  
+  function resizeCanvas() {
+    const worldContainer = el.world.parentElement;
+    const chartContainer = el.chartPos.parentElement;
+    
+    // Set canvas dimensions based on container size
+    el.world.width = worldContainer.clientWidth;
+    el.world.height = worldContainer.clientHeight;
+    
+    const chartHeight = Math.max(200, chartContainer.clientHeight / 2 - 8);
+    el.chartPos.width = chartContainer.clientWidth;
+    el.chartPos.height = chartHeight;
+    el.chartVel.width = chartContainer.clientWidth;
+    el.chartVel.height = chartHeight;
+    
+    drawWorld(); 
+    drawChart(el.chartPos, state.trace, 'y', 'y (m)'); 
+    drawChart(el.chartVel, state.trace, 'v', 'v (m/s)');
+  }
+
+  function metersToPx(y){
+    const h = el.world.height, pad = worldCfg.padding; 
+    const scale = (h-2*pad)/worldCfg.metersVisible;
+    const y0 = h - pad - (state.ground*scale);
+    return y0 - y*scale;
+  }
+  
+  function drawWorld(){
+    const ctx = wctx, W = el.world.width, H = el.world.height; 
+    ctx.clearRect(0,0,W,H);
+
+    // medium tint (water vs air)
+    const preset = el.mediumPreset.value;
+    if (preset === 'water'){
+      const gpy = metersToPx(0);
+      ctx.fillStyle = 'rgba(56, 126, 184, 0.18)';
+      ctx.fillRect(0,0,W,gpy);
+    }
+
+    // grid
+    ctx.save();
+    ctx.strokeStyle = '#243056'; ctx.lineWidth = 1;
+    const pad = worldCfg.padding; const scale = (H - 2*pad) / worldCfg.metersVisible;
+    const metersPerGrid = 5;
+    for (let i=0;i<=worldCfg.metersVisible;i+=metersPerGrid){
+      const y = metersToPx(i);
+      ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W-pad, y); ctx.stroke();
+      ctx.fillStyle = '#5f75b5'; ctx.font = '11px ui-monospace'; ctx.fillText(`${i} m`, 6, y-2);
+    }
+
+    // ground
+    ctx.fillStyle = '#162142';
+    const gpy = metersToPx(0);
+    ctx.fillRect(pad, gpy, W-2*pad, H-gpy);
+
+    // ball
+    const x = W/2; const y = metersToPx(state.y);
+    const rpx = Math.max(6, (parseFloat(el.diam.value)/2) * ((H-2*pad)/worldCfg.metersVisible));
+
+    // velocity arrow
+    const vScale = 3; const vy = -state.v * vScale;
+    ctx.strokeStyle = '#7ce3ff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + vy); ctx.stroke();
+    const ah = 8 * Math.sign(vy || 1);
+    ctx.beginPath(); ctx.moveTo(x-5, y + vy - ah); ctx.lineTo(x+5, y + vy - ah); ctx.lineTo(x, y + vy); ctx.closePath(); ctx.fillStyle = '#7ce3ff'; ctx.fill();
+
+    const grad = ctx.createRadialGradient(x-4, y-6, 2, x, y, rpx+2);
+    grad.addColorStop(0,'#8bf9ff'); grad.addColorStop(1,'#4278ff');
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(x, y, rpx, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#a9c3ff88'; ctx.stroke();
+
+    // height ruler
+    ctx.strokeStyle = '#3757a4'; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(W-50, metersToPx(0)); ctx.lineTo(W-50, y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#9fb9ff'; ctx.font = '12px Inter, system-ui, sans-serif';
+    ctx.fillText(`y = ${round(state.y,2)} m`, W-126, y-8);
+
+    ctx.restore();
+  }
+
+  function drawChart(canvas, series, key, label){
+    const ctx = canvas.getContext('2d'); 
+    const W = canvas.width, H = canvas.height; 
+    ctx.clearRect(0,0,W,H);
+    
+    ctx.strokeStyle = '#2a3c6c'; ctx.lineWidth = 1; 
+    ctx.beginPath(); ctx.moveTo(40, 10); ctx.lineTo(40, H-28); ctx.lineTo(W-10, H-28); ctx.stroke();
+    ctx.fillStyle = '#9fb3d9'; ctx.font = '12px ui-monospace'; ctx.fillText(label, 8, 16);
+    
+    if (series.length < 2) return;
+    
+    const tMin = series[0].t, tMax = series[series.length-1].t || 1;
+    let vMin = Infinity, vMax = -Infinity; 
+    for (const p of series){ 
+      const v=p[key]; 
+      if(v<vMin) vMin=v; 
+      if(v>vMax) vMax=v; 
+    }
+    if (vMin===vMax){ vMin-=1; vMax+=1; }
+    
+    const xOf = t => 40 + (t - tMin) / (tMax - tMin) * (W - 50);
+    const yOf = v => 10 + (1 - (v - vMin) / (vMax - vMin)) * (H - 38);
+    
+    ctx.strokeStyle = '#22335f'; ctx.setLineDash([4,4]); 
+    for(let i=0;i<5;i++){ 
+      const y=10+i*(H-38)/4; 
+      ctx.beginPath(); ctx.moveTo(40,y); ctx.lineTo(W-10,y); ctx.stroke(); 
+    } 
+    ctx.setLineDash([]);
+    
+    ctx.strokeStyle = '#74d3ff'; ctx.lineWidth = 2; 
+    ctx.beginPath(); 
+    ctx.moveTo(xOf(series[0].t), yOf(series[0][key])); 
+    for (let i=1;i<series.length;i++) 
+      ctx.lineTo(xOf(series[i].t), yOf(series[i][key])); 
+    ctx.stroke();
+    
+    ctx.fillStyle = '#7fa6ff'; ctx.font='11px ui-monospace'; 
+    ctx.fillText(round(vMax,2), 4, yOf(vMax)+4); 
+    ctx.fillText(round(vMin,2), 4, yOf(vMin)+4); 
+    ctx.fillText(round(tMin,2), 40, H-8); 
+    ctx.fillText(round(tMax,2), W-50, H-8);
+  }
+
+  // wiring
+  el.presetG.addEventListener('change', ()=>{ el.g.value = el.presetG.value; updateVT(); });
+  el.mediumPreset.addEventListener('change', ()=>{
+    switch(el.mediumPreset.value){
+      case 'vacuum':
+        el.rho.value = 0; el.mu.value = 0; el.cd.value = 0.47; el.buoyOn.checked = false; el.dragModel.value='quadratic'; el.mediumTag.textContent='Vacuum'; break;
+      case 'air':
+        el.rho.value = 1.225; el.mu.value = 0.0000181; el.cd.value = 0.47; el.buoyOn.checked = true; el.dragModel.value='quadratic'; el.mediumTag.textContent='Air'; break;
+      case 'water':
+        el.rho.value = 1000; el.mu.value = 0.001; el.cd.value = 0.47; el.buoyOn.checked = true; el.dragModel.value='linear'; el.mediumTag.textContent='Water'; break;
+      default:
+        el.mediumTag.textContent='Custom';
+    }
+    updateVT();
+  });
+  ['g','mass','diam','rho','mu','cd','dragModel','buoyOn'].forEach(id=>$(id).addEventListener('input', updateVT));
+
+  function resetSim(){
+    state.t = 0; state.y = parseFloat(el.h0.value); state.v = parseFloat(el.v0.value); state.a = -parseFloat(el.g.value);
+    state.hmax = state.y; state.impactSpeed = null; state.trace.length = 0; el.statImpact.textContent = '—';
+    drawWorld(); drawChart(el.chartPos, state.trace, 'y', 'y (m)'); drawChart(el.chartVel, state.trace, 'v', 'v (m/s)');
+    updateStats(); updateVT(); log('Reset simulation.');
+  }
+
+  function updateStats(){
+    el.statT.textContent = state.t.toFixed(2);
+    el.statY.textContent = state.y.toFixed(2);
+    el.statV.textContent = state.v.toFixed(2);
+    el.statA.textContent = state.a.toFixed(2);
+    el.statHmax.textContent = state.hmax.toFixed(2);
+    el.statImpact.textContent = (state.impactSpeed!=null) ? state.impactSpeed.toFixed(2) : '—';
+  }
+  
+  function updateVT(){
+    const vt = terminalVelocity();
+    el.statVT.textContent = (vt===Infinity? '∞' : (isNaN(vt)? '—' : vt.toFixed(2)));
+  }
+
+  // main loop
+  let raf=null,lastFrame=0,acc=0;
+  function tick(ts){
+    if(!state.running){ raf=null; return; }
+    if(!lastFrame) lastFrame = ts; const realDt = (ts-lastFrame)/1000; lastFrame = ts;
+    const simDt = parseFloat(el.dt.value); const timeScale = Math.max(0.01, parseFloat(el.timeScale.value));
+    acc += realDt * timeScale;
+    while(acc >= simDt){ state.t += simDt; stepSim(simDt); acc -= simDt; }
+    drawWorld(); drawChart(el.chartPos, state.trace, 'y', 'y (m)'); drawChart(el.chartVel, state.trace, 'v', 'v (m/s)');
+    updateStats(); raf = requestAnimationFrame(tick);
+  }
+
+  function start(){ if(!state.running){ state.running=true; lastFrame=0; acc=0; requestAnimationFrame(tick); log('Started.'); } }
+  function pause(){ if(state.running){ state.running=false; log('Paused.'); } }
+  function step(){ const h=parseFloat(el.dt.value); state.t += h; stepSim(h); drawWorld(); drawChart(el.chartPos, state.trace, 'y', 'y (m)'); drawChart(el.chartVel, state.trace, 'v', 'v (m/s)'); updateStats(); }
+
+  el.btnStart.addEventListener('click', start);
+  el.btnPause.addEventListener('click', pause);
+  el.btnReset.addEventListener('click', ()=>{ pause(); resetSim(); });
+  el.btnStep.addEventListener('click', ()=>{ pause(); step(); });
+
+  // export & snapshot
+  el.btnExport.addEventListener('click', ()=>{
+    if(state.trace.length===0){ log('Nothing to export yet.'); return; }
+    const header='t(s),y(m),v(m/s)\n';
+    const rows = state.trace.map(p=>`${p.t.toFixed(6)},${p.y.toFixed(6)},${p.v.toFixed(6)}`).join('\n');
+    const blob = new Blob([header+rows], {type:'text/csv'});
+    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='free_fall_trace.csv'; a.click(); URL.revokeObjectURL(url); log('Exported CSV.');
+  });
+  
+  el.btnSnapshot.addEventListener('click', ()=>{
+    const tmp=document.createElement('canvas'); tmp.width=el.world.width; tmp.height=el.world.height; const ctx=tmp.getContext('2d');
+    ctx.fillStyle='#0b1020'; ctx.fillRect(0,0,tmp.width,tmp.height); ctx.drawImage(el.world,0,0);
+    const title=`t=${state.t.toFixed(2)}s  y=${state.y.toFixed(2)}m  v=${state.v.toFixed(2)}m/s  v_t=${el.statVT.textContent} m/s`;
+    ctx.fillStyle='#e7ecf6'; ctx.font='14px Inter, system-ui, sans-serif'; ctx.fillText(title, 12, 22);
+    tmp.toBlob((b)=>{ const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download='free_fall_snapshot.png'; a.click(); URL.revokeObjectURL(url); log('Saved PNG snapshot.'); });
+  });
+
+  // keyboard shortcuts
+  window.addEventListener('keydown', (e)=>{
+    if (e.key===' '){ e.preventDefault(); state.running?pause():start(); }
+    if (e.key==='r'){ resetSim(); }
+    if (e.key==='s'){ step(); }
+  });
+
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+  });
+
+  // init
+  resizeCanvas();
+  resetSim();
+})();
+</script>
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
+</script>
+</body>
+</html>

@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barlow's Wheel Simulation</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #1a2a6c, #2a4b8c);
+            color: white;
+        }
+        canvas { 
+            display: block; 
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            width: 280px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .slider-container {
+            margin: 12px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #fff;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #3498db;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .value-display {
+            text-align: right;
+            font-size: 0.9em;
+            color: #bbb;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 400px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h1 {
+            font-size: 1.3em;
+            margin-top: 0;
+            color: #3498db;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 8px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        #reset {
+            background: #e74c3c;
+        }
+        #reset:hover {
+            background: #c0392b;
+        }
+        #current-indicator {
+            height: 10px;
+            width: 100%;
+            background: linear-gradient(to right, blue, green, red);
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        .field-lines {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            right: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9em;
+        }
+        .info-item {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <h1>Barlow's Wheel Controls</h1>
+        
+        <div class="slider-container">
+            <label for="voltage">Voltage (V):</label>
+            <input type="range" id="voltage" min="0" max="12" value="6" step="0.5">
+            <div class="value-display"><span id="voltage-value">6</span> V</div>
+        </div>
+        
+        <div class="slider-container">
+            <label for="magneticField">Magnetic Field Strength:</label>
+            <input type="range" id="magneticField" min="0" max="100" value="50">
+            <div class="value-display"><span id="magneticField-value">50</span>%</div>
+        </div>
+        
+        <div class="slider-container">
+            <label for="resistance">Circuit Resistance (Ω):</label>
+            <input type="range" id="resistance" min="1" max="100" value="20">
+            <div class="value-display"><span id="resistance-value">20</span> Ω</div>
+        </div>
+        
+        <div class="slider-container">
+            <label for="friction">Friction Coefficient:</label>
+            <input type="range" id="friction" min="0" max="20" value="5">
+            <div class="value-display"><span id="friction-value">5</span></div>
+        </div>
+        
+        <div class="slider-container">
+            <label>Current: <span id="current-value">0.30</span> A</label>
+            <div id="current-indicator"></div>
+        </div>
+        
+        <button id="toggleRotation">Start/Stop</button>
+        <button id="reset">Reset</button>
+    </div>
+    
+    <div id="info-panel">
+        <div class="info-item">Force: <span id="force-value">0.03</span> N</div>
+        <div class="info-item">Torque: <span id="torque-value">0.06</span> N·m</div>
+        <div class="info-item">Speed: <span id="speed-value">0.00</span> rad/s</div>
+    </div>
+    
+    <div class="field-lines">
+        <label>
+            <input type="checkbox" id="showFieldLines" checked> Show Magnetic Field
+        </label>
+    </div>
+    
+    <div id="instructions">
+        <h2>Barlow's Wheel Demonstration</h2>
+        <p>This simulation demonstrates the Lorentz force principle where a current-carrying conductor experiences force in a magnetic field.</p>
+        <p><strong>Physics:</strong> F = BIL, where F is force, B is magnetic field, I is current, and L is conductor length.</p>
+        <p>Adjust parameters to see how they affect rotation speed and direction.</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Main variables
+        let scene, camera, renderer;
+        let wheel, magnet, battery, mercuryTrough, axle, fieldLines = [];
+        let wheelRotationSpeed = 0;
+        let isRotating = false;
+        let currentDirection = 1; // 1 for normal, -1 for reversed
+
+        // Physics parameters
+        let voltage = 6; // volts
+        let magneticFieldStrength = 0.5; // tesla (simplified)
+        let resistance = 20; // ohms
+        let friction = 0.05; // friction coefficient
+        let wheelRadius = 2.0; // wheel radius in units
+        let conductorLength = 0.5; // effective conductor length
+
+        // Initialize the scene
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a1526);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            camera.lookAt(0, 0, 0);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            scene.add(directionalLight);
+            
+            // Add a subtle hemisphere light for better visuals
+            const hemisphereLight = new THREE.HemisphereLight(0x4477ff, 0x2244aa, 0.5);
+            scene.add(hemisphereLight);
+            
+            // Create the components
+            createWheel();
+            createMagnet();
+            createBattery();
+            createMercuryTrough();
+            createBase();
+            createWires();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start animation
+            animate();
+        }
+
+        // Create the wheel with better model
+        function createWheel() {
+            const wheelGroup = new THREE.Group();
+            
+            // Wheel geometry - more detailed
+            const wheelGeometry = new THREE.CylinderGeometry(wheelRadius, wheelRadius, 0.2, 32);
+            const wheelMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x3568cc,
+                metalness: 0.9,
+                roughness: 0.1,
+                shininess: 100
+            });
+            wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            wheel.rotation.x = Math.PI / 2;
+            wheel.castShadow = true;
+            wheel.receiveShadow = false;
+            wheelGroup.add(wheel);
+            
+            // Spokes with better design
+            const spokeGeometry = new THREE.CylinderGeometry(0.05, 0.05, wheelRadius, 8);
+            const spokeMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x2547a3,
+                metalness: 0.8,
+                roughness: 0.2
+            });
+            
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const spoke = new THREE.Mesh(spokeGeometry, spokeMaterial);
+                spoke.rotation.z = angle;
+                spoke.position.x = Math.cos(angle) * (wheelRadius/2);
+                spoke.position.y = Math.sin(angle) * (wheelRadius/2);
+                spoke.castShadow = true;
+                wheelGroup.add(spoke);
+            }
+            
+            // Rim details
+            const rimGeometry = new THREE.TorusGeometry(wheelRadius, 0.05, 16, 32);
+            const rimMaterial = new THREE.MeshPhongMaterial({ color: 0x2547a3 });
+            const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+            rim.rotation.x = Math.PI / 2;
+            wheelGroup.add(rim);
+            
+            // Axle with better model
+            const axleGeometry = new THREE.CylinderGeometry(0.15, 0.15, 3, 16);
+            const axleMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x333333,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            axle = new THREE.Mesh(axleGeometry, axleMaterial);
+            axle.rotation.x = Math.PI / 2;
+            axle.castShadow = true;
+            wheelGroup.add(axle);
+            
+            // Axle ends
+            const axleEndGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+            const axleEndMaterial = new THREE.MeshPhongMaterial({ color: 0x555555 });
+            
+            const axleEnd1 = new THREE.Mesh(axleEndGeometry, axleEndMaterial);
+            axleEnd1.position.set(1.5, 0, 0);
+            wheelGroup.add(axleEnd1);
+            
+            const axleEnd2 = new THREE.Mesh(axleEndGeometry, axleEndMaterial);
+            axleEnd2.position.set(-1.5, 0, 0);
+            wheelGroup.add(axleEnd2);
+            
+            scene.add(wheelGroup);
+        }
+
+        // Create the magnet with better model
+        function createMagnet() {
+            const magnetGroup = new THREE.Group();
+            
+            // Magnet base
+            const baseGeometry = new THREE.BoxGeometry(1.2, 0.3, 4);
+            const baseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x222222,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = -1.6;
+            base.castShadow = true;
+            base.receiveShadow = true;
+            magnetGroup.add(base);
+            
+            // North pole (red)
+            const northGeometry = new THREE.BoxGeometry(1, 1.5, 1);
+            const northMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xff3333,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+            const northPole = new THREE.Mesh(northGeometry, northMaterial);
+            northPole.position.set(0, -0.95, 1.5);
+            northPole.castShadow = true;
+            northPole.receiveShadow = true;
+            magnetGroup.add(northPole);
+            
+            // South pole (blue)
+            const southGeometry = new THREE.BoxGeometry(1, 1.5, 1);
+            const southMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x3366ff,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+            const southPole = new THREE.Mesh(southGeometry, southMaterial);
+            southPole.position.set(0, -0.95, -1.5);
+            southPole.castShadow = true;
+            southPole.receiveShadow = true;
+            magnetGroup.add(southPole);
+            
+            // Add labels
+            createMagnetLabels(magnetGroup, -0.95);
+            
+            // Position the magnet
+            magnetGroup.position.set(0, 0, 0);
+            scene.add(magnetGroup);
+            
+            magnet = magnetGroup;
+            
+            // Create magnetic field lines
+            createMagneticFieldLines();
+        }
+
+        // Create labels for the magnet poles
+        function createMagnetLabels(magnetGroup, yPos) {
+            // North label
+            const northLabelGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.6);
+            const northLabelMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+            const northLabel = new THREE.Mesh(northLabelGeometry, northLabelMaterial);
+            northLabel.position.set(0, yPos + 0.9, 1.5);
+            magnetGroup.add(northLabel);
+            
+            // South label
+            const southLabelGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.6);
+            const southLabelMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+            const southLabel = new THREE.Mesh(southLabelGeometry, southLabelMaterial);
+            southLabel.position.set(0, yPos + 0.9, -1.5);
+            magnetGroup.add(southLabel);
+            
+            // Add 'N' and 'S' text (using simple geometry)
+            const nGeometry = new THREE.BoxGeometry(0.3, 0.05, 0.05);
+            const nMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
+            
+            // Create an 'N' shape
+            const nVertical1 = new THREE.Mesh(nGeometry, nMaterial);
+            nVertical1.position.set(-0.1, yPos + 0.9, 1.5);
+            nVertical1.scale.set(1, 1, 3);
+            magnetGroup.add(nVertical1);
+            
+            const nVertical2 = new THREE.Mesh(nGeometry, nMaterial);
+            nVertical2.position.set(0.1, yPos + 0.9, 1.5);
+            nVertical2.scale.set(1, 1, 3);
+            magnetGroup.add(nVertical2);
+            
+            const nDiagonal = new THREE.Mesh(nGeometry, nMaterial);
+            nDiagonal.position.set(0, yPos + 0.9, 1.5);
+            nDiagonal.scale.set(1, 1, 4);
+            nDiagonal.rotation.y = Math.PI / 4;
+            magnetGroup.add(nDiagonal);
+            
+            // Create an 'S' shape
+            const sHorizontal1 = new THREE.Mesh(nGeometry, nMaterial);
+            sHorizontal1.position.set(0, yPos + 0.93, -1.5);
+            sHorizontal1.scale.set(3, 1, 1);
+            magnetGroup.add(sHorizontal1);
+            
+            const sHorizontal2 = new THREE.Mesh(nGeometry, nMaterial);
+            sHorizontal2.position.set(0, yPos + 0.87, -1.5);
+            sHorizontal2.scale.set(3, 1, 1);
+            magnetGroup.add(sHorizontal2);
+            
+            const sCurve = new THREE.Mesh(nGeometry, nMaterial);
+            sCurve.position.set(0.1, yPos + 0.9, -1.5);
+            sCurve.scale.set(1, 1, 2.5);
+            sCurve.rotation.y = Math.PI / 4;
+            magnetGroup.add(sCurve);
+        }
+
+        // Create magnetic field lines
+        function createMagneticFieldLines() {
+            const fieldLineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            // Create multiple field lines between the poles
+            for (let i = -3; i <= 3; i++) {
+                const points = [];
+                const height = 0.5 + Math.abs(i) * 0.2;
+                
+                for (let j = 0; j <= 20; j++) {
+                    const t = j / 20;
+                    const x = 0;
+                    const y = Math.sin(t * Math.PI) * height - 1.2;
+                    const z = (t - 0.5) * 3;
+                    points.push(new THREE.Vector3(x, y, z));
+                }
+                
+                const fieldLineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const fieldLine = new THREE.Line(fieldLineGeometry, fieldLineMaterial);
+                fieldLine.visible = document.getElementById('showFieldLines').checked;
+                scene.add(fieldLine);
+                fieldLines.push(fieldLine);
+            }
+        }
+
+        // Create the battery with better model
+        function createBattery() {
+            const batteryGroup = new THREE.Group();
+            
+            // Battery body
+            const bodyGeometry = new THREE.CylinderGeometry(0.6, 0.6, 2.2, 32);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x333333,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.castShadow = true;
+            batteryGroup.add(body);
+            
+            // Positive terminal (red)
+            const positiveGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.2, 32);
+            const positiveMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xff0000,
+                metalness: 0.5,
+                roughness: 0.5
+            });
+            const positiveTerminal = new THREE.Mesh(positiveGeometry, positiveMaterial);
+            positiveTerminal.position.y = 1.2;
+            batteryGroup.add(positiveTerminal);
+            
+            // Negative terminal (black)
+            const negativeGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
+            const negativeMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x111111,
+                metalness: 0.5,
+                roughness: 0.5
+            });
+            const negativeTerminal = new THREE.Mesh(negativeGeometry, negativeMaterial);
+            negativeTerminal.position.y = -1.2;
+            batteryGroup.add(negativeTerminal);
+            
+            // Battery label
+            const labelGeometry = new THREE.CylinderGeometry(0.61, 0.61, 0.1, 32);
+            const labelMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+            const label = new THREE.Mesh(labelGeometry, labelMaterial);
+            label.position.y = 0.5;
+            batteryGroup.add(label);
+            
+            // Position the battery
+            batteryGroup.position.set(-5, 0.5, 0);
+            scene.add(batteryGroup);
+            
+            battery = batteryGroup;
+        }
+
+        // Create the mercury trough with better model
+        function createMercuryTrough() {
+            const troughGroup = new THREE.Group();
+            
+            // Trough body
+            const troughGeometry = new THREE.CylinderGeometry(1.5, 1.5, 0.4, 32);
+            const troughMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x888888,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const trough = new THREE.Mesh(troughGeometry, troughMaterial);
+            trough.castShadow = true;
+            trough.receiveShadow = true;
+            troughGroup.add(trough);
+            
+            // Mercury (liquid metal)
+            const mercuryGeometry = new THREE.CylinderGeometry(1.4, 1.4, 0.25, 32);
+            const mercuryMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xd0d0d0,
+                metalness: 0.9,
+                roughness: 0.1,
+                emissive: 0x222222
+            });
+            const mercury = new THREE.Mesh(mercuryGeometry, mercuryMaterial);
+            mercury.position.y = 0.025;
+            mercury.receiveShadow = true;
+            troughGroup.add(mercury);
+            
+            // Position the trough
+            troughGroup.position.set(0, -1.7, 0);
+            scene.add(troughGroup);
+            
+            mercuryTrough = troughGroup;
+        }
+
+        // Create the base
+        function createBase() {
+            const baseGeometry = new THREE.BoxGeometry(12, 0.3, 8);
+            const baseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x555555,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = -1.9;
+            base.receiveShadow = true;
+            scene.add(base);
+            
+            // Add a wood texture effect
+            const woodGeometry = new THREE.BoxGeometry(11.8, 0.1, 7.8);
+            const woodMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x8b4513,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const woodTop = new THREE.Mesh(woodGeometry, woodMaterial);
+            woodTop.position.y = -1.75;
+            woodTop.receiveShadow = true;
+            scene.add(woodTop);
+        }
+
+        // Create connecting wires
+        function createWires() {
+            const wireMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xff0000,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            
+            // Wire from battery positive to axle
+            const wire1Geometry = new THREE.CylinderGeometry(0.03, 0.03, 4, 8);
+            const wire1 = new THREE.Mesh(wire1Geometry, wireMaterial);
+            wire1.position.set(-3, 0.5, 0);
+            wire1.rotation.z = Math.PI / 2;
+            scene.add(wire1);
+            
+            // Wire from mercury trough to battery negative
+            const wire2Geometry = new THREE.CylinderGeometry(0.03, 0.03, 6, 8);
+            const wire2 = new THREE.Mesh(wire2Geometry, wireMaterial);
+            wire2.position.set(-2.5, -1.1, 0);
+            wire2.rotation.z = Math.PI / 4;
+            scene.add(wire2);
+        }
+
+        // Setup event listeners for controls
+        function setupEventListeners() {
+            // Voltage slider
+            const voltageSlider = document.getElementById('voltage');
+            const voltageValue = document.getElementById('voltage-value');
+            
+            voltageSlider.addEventListener('input', function() {
+                voltage = parseFloat(this.value);
+                voltageValue.textContent = voltage;
+                updateRotationSpeed();
+            });
+            
+            // Magnetic field slider
+            const magneticFieldSlider = document.getElementById('magneticField');
+            const magneticFieldValue = document.getElementById('magneticField-value');
+            
+            magneticFieldSlider.addEventListener('input', function() {
+                magneticFieldStrength = parseFloat(this.value) / 100;
+                magneticFieldValue.textContent = this.value;
+                updateRotationSpeed();
+                
+                // Update field line visibility
+                const showFieldLines = document.getElementById('showFieldLines').checked;
+                fieldLines.forEach(line => {
+                    line.visible = showFieldLines;
+                    line.material.opacity = 0.3 + magneticFieldStrength * 0.7;
+                });
+            });
+            
+            // Resistance slider
+            const resistanceSlider = document.getElementById('resistance');
+            const resistanceValue = document.getElementById('resistance-value');
+            
+            resistanceSlider.addEventListener('input', function() {
+                resistance = parseFloat(this.value);
+                resistanceValue.textContent = resistance;
+                updateRotationSpeed();
+            });
+            
+            // Friction slider
+            const frictionSlider = document.getElementById('friction');
+            const frictionValue = document.getElementById('friction-value');
+            
+            frictionSlider.addEventListener('input', function() {
+                friction = parseFloat(this.value) / 100;
+                frictionValue.textContent = this.value;
+                updateRotationSpeed();
+            });
+            
+            // Field lines checkbox
+            document.getElementById('showFieldLines').addEventListener('change', function() {
+                fieldLines.forEach(line => {
+                    line.visible = this.checked;
+                });
+            });
+            
+            // Toggle rotation button
+            document.getElementById('toggleRotation').addEventListener('click', function() {
+                isRotating = !isRotating;
+            });
+            
+            // Reset button
+            document.getElementById('reset').addEventListener('click', function() {
+                // Reset parameters
+                voltage = 6;
+                magneticFieldStrength = 0.5;
+                resistance = 20;
+                friction = 0.05;
+                currentDirection = 1;
+                
+                // Reset UI
+                voltageSlider.value = voltage;
+                document.getElementById('voltage-value').textContent = voltage;
+                
+                magneticFieldSlider.value = magneticFieldStrength * 100;
+                document.getElementById('magneticField-value').textContent = magneticFieldStrength * 100;
+                
+                resistanceSlider.value = resistance;
+                document.getElementById('resistance-value').textContent = resistance;
+                
+                frictionSlider.value = friction * 100;
+                document.getElementById('friction-value').textContent = friction * 100;
+                
+                // Stop rotation
+                isRotating = false;
+                wheelRotationSpeed = 0;
+                
+                // Reset wheel position
+                wheel.rotation.z = 0;
+                
+                // Update field lines
+                fieldLines.forEach(line => {
+                    line.visible = document.getElementById('showFieldLines').checked;
+                });
+                
+                updateRotationSpeed();
+            });
+        }
+
+        // Update rotation speed based on improved physics
+        function updateRotationSpeed() {
+            // Improved physics model:
+            // Current I = V/R (Ohm's Law)
+            // Force F = B * I * L (Lorentz Force Law)
+            // Torque τ = F * r (r is wheel radius)
+            
+            const current = voltage / resistance;
+            const force = magneticFieldStrength * current * conductorLength;
+            const torque = force * wheelRadius;
+            
+            // Update info panel
+            document.getElementById('current-value').textContent = current.toFixed(2);
+            document.getElementById('force-value').textContent = force.toFixed(3);
+            document.getElementById('torque-value').textContent = torque.toFixed(3);
+            document.getElementById('speed-value').textContent = Math.abs(wheelRotationSpeed).toFixed(2);
+            
+            // Calculate acceleration (simplified model)
+            const acceleration = torque / 2.0; // Simplified moment of inertia
+            
+            // Calculate maximum speed (when force balances friction)
+            const maxSpeed = acceleration / (friction + 0.01);
+            
+            // Update rotation speed (approaching maxSpeed exponentially)
+            if (isRotating) {
+                wheelRotationSpeed += (maxSpeed - wheelRotationSpeed) * 0.05;
+            } else {
+                // Apply friction to slow down
+                wheelRotationSpeed *= (1 - friction);
+                if (Math.abs(wheelRotationSpeed) < 0.001) wheelRotationSpeed = 0;
+            }
+            
+            // Update current indicator color based on current value
+            const currentIndicator = document.getElementById('current-indicator');
+            const currentNormalized = Math.min(1, current / 0.6); // Normalize to 0-1, with 0.6A as max
+            currentIndicator.style.background = `linear-gradient(to right, 
+                blue ${currentNormalized * 20}%, 
+                green ${currentNormalized * 20}% ${currentNormalized * 70}%, 
+                red ${currentNormalized * 70}%)`;
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isRotating) {
+                // Rotate the wheel based on physics
+                wheel.rotation.z += wheelRotationSpeed * currentDirection * 0.01;
+            } else if (wheelRotationSpeed !== 0) {
+                // Apply friction to slow down
+                wheel.rotation.z += wheelRotationSpeed * currentDirection * 0.01;
+                wheelRotationSpeed *= (1 - friction);
+                if (Math.abs(wheelRotationSpeed) < 0.001) wheelRotationSpeed = 0;
+            }
+            
+            // Update rotation speed continuously
+            updateRotationSpeed();
+            
+            renderer.render(scene, camera);
+        }
+
+        // Initialize the simulation
+        init();
+    </script>
+</body>
+</html>

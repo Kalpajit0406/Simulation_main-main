@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=900, initial-scale=1.0">
+    <title>Interactive Heat Engine Simulation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(120deg, #f5f7fa 0%, #e0eafc 100%);
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            background: linear-gradient(180deg, #fff 70%, #e0eafc 100%);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+            border-radius: 12px;
+            transition: box-shadow 0.3s;
+        }
+        canvas:active, canvas:focus {
+            box-shadow: 0 8px 24px rgba(52,152,219,0.15);
+        }
+        .dashboard {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .metrics {
+            background: linear-gradient(120deg, #f8fafc 60%, #e0eafc 100%);
+            padding: 18px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(52,152,219,0.07);
+            margin: 10px;
+            min-width: 180px;
+            transition: transform 0.2s;
+        }
+        .metrics:hover {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 8px 24px rgba(52,152,219,0.13);
+        }
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .metric-label {
+            font-size: 15px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 24px 10px 10px 10px;
+            background: linear-gradient(120deg, #fff 60%, #e0eafc 100%);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(52,152,219,0.07);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .button-row {
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 22px;
+            margin: 0 10px 10px 10px;
+            cursor: pointer;
+            background: linear-gradient(120deg, #3498db 60%, #2980b9 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 17px;
+            font-weight: 500;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(52,152,219,0.07);
+        }
+        button:hover {
+            background: linear-gradient(120deg, #2980b9 60%, #3498db 100%);
+            transform: translateY(-2px) scale(1.04);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button#pauseBtn {
+            background: linear-gradient(120deg, #e74c3c 60%, #c0392b 100%);
+        }
+        button#pauseBtn:hover {
+            background: linear-gradient(120deg, #c0392b 60%, #e74c3c 100%);
+        }
+        button#resetBtn {
+            background: linear-gradient(120deg, #95a5a6 60%, #7f8c8d 100%);
+        }
+        button#resetBtn:hover {
+            background: linear-gradient(120deg, #7f8c8d 60%, #95a5a6 100%);
+        }
+        .slider-container {
+            margin: 15px 0;
+            text-align: left;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        label {
+            display: inline-block;
+            width: 200px;
+            text-align: right;
+            margin-right: 15px;
+            color: #2c3e50;
+            font-size: 1em;
+        }
+        input[type="range"] {
+            width: 220px;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ecf0f1;
+            border-radius: 4px;
+            outline: none;
+            margin-right: 10px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3498db;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(52,152,219,0.15);
+            border: 2px solid #fff;
+        }
+        input[type="number"] {
+            width: 70px;
+            margin-left: 8px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            border: 1px solid #bdc3c7;
+            font-size: 1em;
+            text-align: right;
+        }
+        .temp-value {
+            display: inline-block;
+            width: 70px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-left: 8px;
+        }
+        .phase-indicator {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .phase {
+            padding: 10px 22px;
+            margin: 0 7px 7px 7px;
+            border-radius: 20px;
+            background: #ecf0f1;
+            color: #7f8c8d;
+            font-size: 15px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(52,152,219,0.07);
+        }
+        .phase.active {
+            background: linear-gradient(120deg, #3498db 60%, #2980b9 100%);
+            color: white;
+            box-shadow: 0 4px 16px rgba(52, 152, 219, 0.13);
+            font-weight: bold;
+        }
+        .explanation {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(52,152,219,0.07);
+            margin: 24px 0;
+            text-align: left;
+            line-height: 1.7;
+        }
+        .explanation h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        @media (max-width: 900px) {
+            .dashboard {
+                flex-direction: column;
+                align-items: center;
+            }
+            .metrics {
+                min-width: 80vw;
+            }
+            canvas {
+                width: 98vw !important;
+                max-width: 98vw !important;
+            }
+        }
+        @media (max-width: 768px) {
+            .slider-container {
+                flex-direction: column;
+                text-align: center;
+            }
+            label {
+                display: block;
+                text-align: center;
+                width: auto;
+                margin-right: 0;
+                margin-bottom: 5px;
+            }
+            input[type="range"] {
+                width: 80vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Interactive Heat Engine Simulation</h1>
+    <p class="subtitle">Visualizing Thermodynamic Principles in Action</p>
+    
+    <div class="controls">
+        <div class="button-row">
+            <button id="startBtn">▶ Start</button>
+            <button id="pauseBtn">⏸ Pause</button>
+            <button id="resetBtn">↻ Reset</button>
+        </div>
+        <div class="slider-container">
+            <label for="hotTemp">Hot Reservoir Temperature:</label>
+            <input type="range" id="hotTemp" min="300" max="800" value="600" step="10">
+            <input type="number" id="hotTempNum" min="300" max="800" value="600" step="10">
+            <span class="temp-value" id="hotTempValue">600 K</span>
+        </div>
+        <div class="slider-container">
+            <label for="coldTemp">Cold Reservoir Temperature:</label>
+            <input type="range" id="coldTemp" min="200" max="500" value="300" step="10">
+            <input type="number" id="coldTempNum" min="200" max="500" value="300" step="10">
+            <span class="temp-value" id="coldTempValue">300 K</span>
+        </div>
+    </div>
+    
+    <div class="phase-indicator">
+        <div class="phase" id="phase1">1. Isothermal Expansion</div>
+        <div class="phase" id="phase2">2. Isochoric Cooling</div>
+        <div class="phase" id="phase3">3. Isothermal Compression</div>
+        <div class="phase" id="phase4">4. Isochoric Heating</div>
+    </div>
+    
+    <canvas id="engineCanvas" width="850" height="400" tabindex="0"></canvas>
+    
+    <div class="dashboard">
+        <div class="metrics">
+            <div class="metric-value" id="cycleCount">0</div>
+            <div class="metric-label">Cycles Completed</div>
+        </div>
+        <div class="metrics">
+            <div class="metric-value" id="workDone">0 J</div>
+            <div class="metric-label">Total Work Output</div>
+        </div>
+        <div class="metrics">
+            <div class="metric-value" id="efficiency">0%</div>
+            <div class="metric-label">Actual Efficiency</div>
+        </div>
+        <div class="metrics">
+            <div class="metric-value" id="carnotEfficiency">50%</div>
+            <div class="metric-label">Carnot Efficiency</div>
+        </div>
+    </div>
+    
+    <div class="explanation">
+        <h3>How This Heat Engine Works</h3>
+        <p>This simulation demonstrates a Stirling-like heat engine operating through four thermodynamic processes:</p>
+        <ol>
+            <li><strong>Isothermal Expansion</strong>: The gas expands at constant temperature (hot reservoir), doing work on the piston while absorbing heat.</li>
+            <li><strong>Isochoric Cooling</strong>: The gas cools at constant volume as heat flows to the cold reservoir.</li>
+            <li><strong>Isothermal Compression</strong>: The gas is compressed at constant temperature (cold reservoir), releasing heat.</li>
+            <li><strong>Isochoric Heating</strong>: The gas heats at constant volume as heat flows from the hot reservoir.</li>
+        </ol>
+        <p>The efficiency is calculated as (Work Output) / (Heat Input). The Carnot efficiency represents the theoretical maximum efficiency for a heat engine operating between these temperatures.</p>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('engineCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Engine parameters
+        let engine = {
+            x: 200,
+            y: 200,
+            width: 120,
+            height: 100,
+            pistonHeight: 40,
+            pistonPosition: 0.5, // 0-1 range
+            angle: 0,
+            phase: 0, // 0-3 representing different phases of the cycle
+            cycleCount: 0,
+            workDone: 0,
+            heatInTotal: 0,
+            isRunning: false,
+            animationId: null,
+            hotTemp: 600,
+            coldTemp: 300,
+            gasParticles: []
+        };
+        
+        // Initialize gas particles
+        function initGasParticles() {
+            engine.gasParticles = [];
+            const particleCount = 50;
+            for (let i = 0; i < particleCount; i++) {
+                engine.gasParticles.push({
+                    x: Math.random() * engine.width + engine.x,
+                    y: Math.random() * engine.height + (engine.y - engine.height/2),
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    radius: Math.random() * 3 + 2
+                });
+            }
+        }
+        
+        // Control elements
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const hotTempSlider = document.getElementById('hotTemp');
+        const coldTempSlider = document.getElementById('coldTemp');
+        const hotTempNum = document.getElementById('hotTempNum');
+        const coldTempNum = document.getElementById('coldTempNum');
+        const hotTempValue = document.getElementById('hotTempValue');
+        const coldTempValue = document.getElementById('coldTempValue');
+        const cycleCountDisplay = document.getElementById('cycleCount');
+        const workDoneDisplay = document.getElementById('workDone');
+        const efficiencyDisplay = document.getElementById('efficiency');
+        const carnotEfficiencyDisplay = document.getElementById('carnotEfficiency');
+        const phaseDisplays = [
+            document.getElementById('phase1'),
+            document.getElementById('phase2'),
+            document.getElementById('phase3'),
+            document.getElementById('phase4')
+        ];
+        
+        // Track last changed temp control to enforce constraints smartly
+        let lastChangedTemp = null;
+
+        // Event listeners
+        startBtn.addEventListener('click', startEngine);
+        pauseBtn.addEventListener('click', pauseEngine);
+        resetBtn.addEventListener('click', resetEngine);
+
+        // Slider and number input sync for hot reservoir
+        hotTempSlider.addEventListener('input', function() {
+            lastChangedTemp = 'hot';
+            hotTempNum.value = this.value;
+            updateTemperatures();
+        });
+        hotTempNum.addEventListener('input', function() {
+            lastChangedTemp = 'hot';
+            hotTempSlider.value = this.value;
+            updateTemperatures();
+        });
+
+        // Slider and number input sync for cold reservoir
+        coldTempSlider.addEventListener('input', function() {
+            lastChangedTemp = 'cold';
+            coldTempNum.value = this.value;
+            updateTemperatures();
+        });
+        coldTempNum.addEventListener('input', function() {
+            lastChangedTemp = 'cold';
+            coldTempSlider.value = this.value;
+            updateTemperatures();
+        });
+        
+        // Initialize
+        initGasParticles();
+        drawEngine();
+        updateDisplays();
+        updatePhaseIndicator();
+        
+        function startEngine() {
+            if (!engine.isRunning) {
+                engine.isRunning = true;
+                startBtn.textContent = "▶ Running";
+                animate();
+            }
+        }
+        
+        function pauseEngine() {
+            engine.isRunning = false;
+            startBtn.textContent = "▶ Start";
+            if (engine.animationId) {
+                cancelAnimationFrame(engine.animationId);
+                engine.animationId = null;
+            }
+        }
+        
+        function resetEngine() {
+            pauseEngine();
+            engine.phase = 0;
+            engine.cycleCount = 0;
+            engine.workDone = 0;
+            engine.heatInTotal = 0;
+            engine.pistonPosition = 0.5;
+            engine.angle = 0;
+            initGasParticles();
+            drawEngine();
+            updateDisplays();
+            updatePhaseIndicator();
+        }
+        
+        function updateTemperatures() {
+            const hotMin = parseInt(hotTempSlider.min);
+            const hotMax = parseInt(hotTempSlider.max);
+            const coldMin = parseInt(coldTempSlider.min);
+            const coldMax = parseInt(coldTempSlider.max);
+            const minGap = 10; // minimum temperature gap (K)
+
+            let hot = parseInt(hotTempSlider.value);
+            let cold = parseInt(coldTempSlider.value);
+
+            // Clamp within slider ranges
+            hot = Math.max(hotMin, Math.min(hotMax, isNaN(hot) ? engine.hotTemp : hot));
+            cold = Math.max(coldMin, Math.min(coldMax, isNaN(cold) ? engine.coldTemp : cold));
+
+            // Enforce cold < hot - minGap
+            if (lastChangedTemp === 'hot') {
+                if (hot <= cold + minGap) {
+                    cold = Math.max(coldMin, Math.min(hot - minGap, coldMax));
+                }
+            } else if (lastChangedTemp === 'cold') {
+                if (cold >= hot - minGap) {
+                    hot = Math.min(hotMax, Math.max(cold + minGap, hotMin));
+                }
+            } else {
+                if (hot <= cold + minGap) {
+                    hot = Math.min(hotMax, cold + minGap);
+                }
+            }
+
+            // Persist back to inputs
+            hotTempSlider.value = hot;
+            hotTempNum.value = hot;
+            coldTempSlider.value = cold;
+            coldTempNum.value = cold;
+
+            engine.hotTemp = hot;
+            engine.coldTemp = cold;
+            hotTempValue.textContent = engine.hotTemp + " K";
+            coldTempValue.textContent = engine.coldTemp + " K";
+            updateDisplays();
+        }
+        
+        function updatePhaseIndicator() {
+            phaseDisplays.forEach((phase, index) => {
+                if (index === engine.phase) {
+                    phase.classList.add('active');
+                } else {
+                    phase.classList.remove('active');
+                }
+            });
+        }
+        
+        function animate() {
+            if (!engine.isRunning) return;
+            
+            // Update engine state
+            engine.angle += 0.02;
+            if (engine.angle >= Math.PI * 2) {
+                engine.angle -= Math.PI * 2;
+                engine.cycleCount++;
+
+                // Approximate thermodynamic cycle: actual efficiency is a fraction of Carnot
+                const deltaT = Math.max(0, engine.hotTemp - engine.coldTemp);
+                const carnot = engine.hotTemp > 0 ? (1 - engine.coldTemp / engine.hotTemp) : 0;
+                const actualEfficiency = Math.max(0, Math.min(carnot, 0.7 * carnot));
+
+                // Scale heat input per cycle for visualization units
+                const heatIn = deltaT * 10; // arbitrary scaling factor for demo
+                const work = heatIn * actualEfficiency;
+                engine.heatInTotal += heatIn;
+                engine.workDone += work;
+
+                // Reset phase at cycle boundary
+                engine.phase = 0;
+                updatePhaseIndicator();
+            }
+            
+            // Update piston position based on phase
+            switch (engine.phase) {
+                case 0: // Expansion (isothermal)
+                    engine.pistonPosition = 0.5 + 0.4 * Math.sin(engine.angle);
+                    if (engine.angle > Math.PI/2) {
+                        engine.phase = 1;
+                        updatePhaseIndicator();
+                    }
+                    break;
+                case 1: // Cooling (isochoric)
+                    if (engine.angle > Math.PI) {
+                        engine.phase = 2;
+                        updatePhaseIndicator();
+                    }
+                    break;
+                case 2: // Compression (isothermal)
+                    engine.pistonPosition = 0.9 - 0.4 * Math.sin(engine.angle);
+                    if (engine.angle > 3*Math.PI/2) {
+                        engine.phase = 3;
+                        updatePhaseIndicator();
+                    }
+                    break;
+                case 3: // Heating (isochoric)
+                    // Transition to next cycle handled at angle wrap
+                    break;
+            }
+            
+            // Update gas particles
+            updateGasParticles();
+            
+            drawEngine();
+            updateDisplays();
+            
+            engine.animationId = requestAnimationFrame(animate);
+        }
+        
+        function updateGasParticles() {
+            const currentTemp = engine.phase < 2 ? engine.hotTemp : engine.coldTemp;
+            const tempFactor = currentTemp / 600; // Normalize temperature effect
+            
+            const pistonY = engine.y - engine.height/2 + (1 - engine.pistonPosition) * engine.height;
+            const cylinderBottom = engine.y + engine.height/2;
+            const cylinderTop = pistonY - engine.pistonHeight/2;
+            const cylinderHeight = cylinderBottom - cylinderTop;
+            
+            engine.gasParticles.forEach(particle => {
+                // Update position
+                particle.x += particle.vx * tempFactor;
+                particle.y += particle.vy * tempFactor;
+                
+                // Boundary collisions (cylinder walls)
+                if (particle.x < engine.x || particle.x > engine.x + engine.width) {
+                    particle.vx *= -1;
+                    particle.x = Math.max(engine.x, Math.min(engine.x + engine.width, particle.x));
+                }
+                
+                // Boundary collisions (piston and cylinder base)
+                if (particle.y < cylinderTop || particle.y > cylinderBottom) {
+                    particle.vy *= -1;
+                    particle.y = Math.max(cylinderTop, Math.min(cylinderBottom, particle.y));
+                }
+                
+                // Random motion to simulate temperature
+                if (Math.random() < 0.1) {
+                    particle.vx += (Math.random() - 0.5) * 0.5 * tempFactor;
+                    particle.vy += (Math.random() - 0.5) * 0.5 * tempFactor;
+                }
+                
+                // Limit speed
+                const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+                const maxSpeed = 5 * tempFactor;
+                if (speed > maxSpeed) {
+                    particle.vx = (particle.vx / speed) * maxSpeed;
+                    particle.vy = (particle.vy / speed) * maxSpeed;
+                }
+            });
+        }
+        
+        function drawEngine() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw hot and cold reservoirs with gradient
+            drawReservoir(50, 80, 100, 240, `HOT RESERVOIR\n${engine.hotTemp} K`, '#ff6b6b', '#ff8e8e');
+            drawReservoir(700, 80, 100, 240, `COLD RESERVOIR\n${engine.coldTemp} K`, '#6b6bff', '#8e8eff');
+            
+            // Draw connecting rods
+            ctx.beginPath();
+            ctx.moveTo(150, 200);
+            ctx.lineTo(200, 200);
+            ctx.moveTo(320, 200);
+            ctx.lineTo(600, 200);
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Draw engine cylinder with shadow
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 5;
+            ctx.fillStyle = '#ecf0f1';
+            ctx.fillRect(engine.x, engine.y - engine.height/2, engine.width, engine.height);
+            ctx.strokeStyle = '#bdc3c7';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(engine.x, engine.y - engine.height/2, engine.width, engine.height);
+            ctx.restore();
+            
+            // Calculate piston position
+            const pistonY = engine.y - engine.height/2 + (1 - engine.pistonPosition) * engine.height;
+            const cylinderBottom = engine.y + engine.height/2;
+            const cylinderTop = pistonY - engine.pistonHeight/2;
+            const cylinderHeight = cylinderBottom - cylinderTop;
+            
+            // Draw gas particles
+            const particleColor = engine.phase < 2 ? 
+                `rgba(255, ${Math.floor(100 + 155 * (1 - engine.pistonPosition))}, ${Math.floor(100 + 155 * (1 - engine.pistonPosition))}, 0.8)` :
+                `rgba(${Math.floor(100 + 155 * engine.pistonPosition)}, ${Math.floor(100 + 155 * engine.pistonPosition)}, 255, 0.8)`;
+            
+            engine.gasParticles.forEach(particle => {
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                ctx.fillStyle = particleColor;
+                ctx.fill();
+            });
+            
+            // Draw piston with 3D effect
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetY = 5;
+            
+            // Piston body
+            const pistonGradient = ctx.createLinearGradient(engine.x - 10, pistonY - engine.pistonHeight/2, 
+                                                          engine.x - 10, pistonY + engine.pistonHeight/2);
+            pistonGradient.addColorStop(0, '#95a5a6');
+            pistonGradient.addColorStop(1, '#7f8c8d');
+            
+            ctx.fillStyle = pistonGradient;
+            ctx.fillRect(engine.x - 15, pistonY - engine.pistonHeight/2, engine.width + 30, engine.pistonHeight);
+            
+            // Piston edge
+            ctx.strokeStyle = '#bdc3c7';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(engine.x - 15, pistonY - engine.pistonHeight/2, engine.width + 30, engine.pistonHeight);
+            
+            // Piston rings
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 3; i++) {
+                ctx.strokeRect(engine.x - 10 + i*5, pistonY - engine.pistonHeight/3, 
+                              engine.width + 20 - i*10, engine.pistonHeight/1.5);
+            }
+            ctx.restore();
+            
+            // Draw flywheel with gear teeth
+            ctx.save();
+            ctx.translate(600, 200);
+            
+            // Flywheel body
+            const flywheelGradient = ctx.createRadialGradient(0, 0, 20, 0, 0, 50);
+            flywheelGradient.addColorStop(0, '#34495e');
+            flywheelGradient.addColorStop(1, '#2c3e50');
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, 50, 0, Math.PI * 2);
+            ctx.fillStyle = flywheelGradient;
+            ctx.fill();
+            
+            // Gear teeth
+            ctx.beginPath();
+            for (let i = 0; i < 12; i++) {
+                const angle = i * Math.PI / 6;
+                ctx.moveTo(40 * Math.cos(angle), 40 * Math.sin(angle));
+                ctx.lineTo(45 * Math.cos(angle + Math.PI/12), 45 * Math.sin(angle + Math.PI/12));
+                ctx.lineTo(50 * Math.cos(angle), 50 * Math.sin(angle));
+                ctx.lineTo(45 * Math.cos(angle - Math.PI/12), 45 * Math.sin(angle - Math.PI/12));
+                ctx.lineTo(40 * Math.cos(angle), 40 * Math.sin(angle));
+            }
+            ctx.fillStyle = '#2c3e50';
+            ctx.fill();
+            
+            // Center hub
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fill();
+            
+            ctx.restore();
+            
+            // Draw connecting rod to flywheel
+            const flywheelX = 600 + 50 * Math.cos(engine.angle - Math.PI/2);
+            const flywheelY = 200 + 50 * Math.sin(engine.angle - Math.PI/2);
+            
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetY = 3;
+            
+            ctx.beginPath();
+            ctx.moveTo(320, pistonY);
+            ctx.lineTo(flywheelX, flywheelY);
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            ctx.restore();
+            
+            // Draw heat transfer arrows with animation
+            if (engine.phase === 0 || engine.phase === 3) {
+                // Heat entering from hot reservoir
+                const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 200);
+                drawHeatArrow(150, 150, 199, 150, `rgba(255, 100, 100, ${pulse})`, true);
+            }
+            
+            if (engine.phase === 1 || engine.phase === 2) {
+                // Heat exiting to cold reservoir
+                const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 200 + Math.PI);
+                drawHeatArrow(601, 150, 699, 150, `rgba(100, 100, 255, ${pulse})`, false);
+            }
+            
+            // Draw temperature indicator
+            const currentTemp = engine.phase < 2 ? engine.hotTemp : engine.coldTemp;
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Gas Temperature: ${currentTemp} K`, engine.x + engine.width/2, engine.y - engine.height/2 - 10);
+            ctx.textAlign = 'left';
+        }
+        
+        function drawReservoir(x, y, width, height, label, color1, color2) {
+            // Reservoir background with gradient
+            const gradient = ctx.createLinearGradient(x, y, x, y + height);
+            gradient.addColorStop(0, color1);
+            gradient.addColorStop(1, color2);
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, width, height);
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, width, height);
+            
+            // Reservoir label
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            const lines = label.split('\n');
+            lines.forEach((line, i) => {
+                ctx.fillText(line, x + width/2, y + height + 25 + i * 20);
+            });
+            ctx.textAlign = 'left';
+        }
+        
+        function drawHeatArrow(fromX, fromY, toX, toY, color, isIncoming) {
+            const headLength = 15;
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            const pulseWidth = 3 + 2 * Math.sin(Date.now() / 150);
+            
+            // Draw multiple lines for "heat waves"
+            for (let i = 0; i < 3; i++) {
+                const offset = (i - 1) * 3;
+                ctx.beginPath();
+                ctx.moveTo(fromX, fromY + offset);
+                
+                // Make the line wiggle like heat waves
+                const segments = 10;
+                for (let s = 1; s <= segments; s++) {
+                    const segX = fromX + (toX - fromX) * s/segments;
+                    const segY = fromY + offset + (toY - fromY) * s/segments + 
+                                5 * Math.sin(s/segments * Math.PI * 4 + Date.now()/200);
+                    ctx.lineTo(segX, segY);
+                }
+                
+                ctx.strokeStyle = color;
+                ctx.lineWidth = pulseWidth;
+                ctx.stroke();
+            }
+            
+            // Arrow head
+            ctx.beginPath();
+            if (isIncoming) {
+                ctx.moveTo(fromX, fromY);
+                ctx.lineTo(fromX + headLength * Math.cos(angle - Math.PI/6), fromY + headLength * Math.sin(angle - Math.PI/6));
+                ctx.moveTo(fromX, fromY);
+                ctx.lineTo(fromX + headLength * Math.cos(angle + Math.PI/6), fromY + headLength * Math.sin(angle + Math.PI/6));
+            } else {
+                ctx.moveTo(toX, toY);
+                ctx.lineTo(toX - headLength * Math.cos(angle - Math.PI/6), toY - headLength * Math.sin(angle - Math.PI/6));
+                ctx.moveTo(toX, toY);
+                ctx.lineTo(toX - headLength * Math.cos(angle + Math.PI/6), toY - headLength * Math.sin(angle + Math.PI/6));
+            }
+            ctx.strokeStyle = color;
+            ctx.lineWidth = pulseWidth;
+            ctx.stroke();
+        }
+        
+        function updateDisplays() {
+            cycleCountDisplay.textContent = engine.cycleCount;
+            workDoneDisplay.textContent = engine.workDone.toFixed(2) + " J";
+            
+            // Calculate efficiency as cumulative (work done / total heat input)
+            const efficiency = engine.heatInTotal > 0 ? (engine.workDone / engine.heatInTotal) * 100 : 0;
+            efficiencyDisplay.textContent = efficiency.toFixed(1) + "%";
+            
+            // Carnot efficiency
+            const carnotEfficiency = (1 - engine.coldTemp / engine.hotTemp) * 100;
+            carnotEfficiencyDisplay.textContent = carnotEfficiency.toFixed(1) + "%";
+        }
+
+        // Keyboard shortcuts for interactivity
+        canvas.addEventListener('keydown', function(e) {
+            if (e.key === ' ') {
+                if (engine.isRunning) pauseEngine();
+                else startEngine();
+            }
+            if (e.key === 'r' || e.key === 'R') resetEngine();
+        });
+        // Focus canvas for keyboard shortcuts
+        canvas.addEventListener('click', () => canvas.focus());
+    </script>
+</body>
+</html>

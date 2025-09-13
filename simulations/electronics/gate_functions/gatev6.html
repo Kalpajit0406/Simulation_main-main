@@ -1,0 +1,2299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Logic Gate Simulator - Enhanced Symbols & Smooth Drag</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #141827;
+    --panel-light: #1a1f32;
+    --grid: #1f2536;
+    --gate: #252b42;
+    --gate-border: #3a4a7a;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --wire: #60a5fa;
+    --wire-active: #10b981;
+    --pin: #cbd5e1;
+    --pin-active: #10b981;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --resize-handle: #64748b;
+    --drag-preview: rgba(59, 130, 246, 0.3);
+  }
+
+  * { 
+    box-sizing: border-box; 
+  }
+
+  html, body {
+    height: 100%; margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden; user-select: none;
+  }
+
+  .app-container {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1vh 1vw;
+  }
+
+  .main-frame {
+    width: min(98vw, 177.78vh);
+    aspect-ratio: 16/9;
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px var(--shadow);
+    display: grid;
+    grid-template-columns: 260px 1fr 300px;
+    grid-template-rows: 60px 1fr 50px;
+    grid-template-areas:
+      "header header header"
+      "palette canvas controls"
+      "footer footer footer";
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    grid-area: header;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid #334155;
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 20px;
+  }
+
+  .header h1 {
+    margin: 0; font-size: 18px; font-weight: 700;
+    color: var(--text); letter-spacing: -0.025em;
+  }
+
+  .header .badge {
+    background: var(--accent);
+    color: white; padding: 4px 12px;
+    border-radius: 20px; font-size: 12px; font-weight: 600;
+  }
+
+  .header .spacer { flex: 1; }
+
+  .header-controls {
+    display: flex; gap: 12px; align-items: center;
+  }
+
+  .btn {
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn:hover { 
+    background: #334155; 
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+  }
+
+  .toggle {
+    background: var(--panel-light);
+    color: var(--text-muted);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .toggle.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  /* Palette - Enhanced */
+  .palette {
+    grid-area: palette;
+    background: var(--panel-light);
+    border-right: 1px solid #334155;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .palette h2 {
+    margin: 0 0 16px 0;
+    font-size: 14px; font-weight: 600;
+    color: var(--text);
+  }
+
+  .gate-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--panel);
+    border: 1px solid #475569;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    cursor: grab;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gate-item::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, var(--drag-preview), transparent);
+    transition: left 0.6s ease;
+  }
+
+  .gate-item:hover {
+    border-color: var(--accent);
+    background: #1e293b;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  }
+
+  .gate-item:hover::before {
+    left: 100%;
+  }
+
+  .gate-item:active { 
+    cursor: grabbing; 
+    transform: scale(0.98);
+  }
+
+  .gate-icon {
+    width: 50px; height: 34px;
+    background: var(--gate);
+    border: 1px solid var(--gate-border);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 10px;
+    color: var(--text);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gate-icon svg {
+    width: 40px; height: 26px;
+  }
+
+  .gate-info h3 {
+    margin: 0; font-size: 13px; font-weight: 600;
+    color: var(--text);
+  }
+
+  .gate-info p {
+    margin: 2px 0 0 0; font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* Canvas */
+  .canvas {
+    grid-area: canvas;
+    position: relative;
+    background:
+      radial-gradient(circle at 2px 2px, var(--grid) 1px, transparent 1px),
+      var(--bg);
+    background-size: 24px 24px;
+    overflow: hidden;
+    cursor: default;
+  }
+
+  .wires-svg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .wire {
+    fill: none;
+    stroke: var(--wire);
+    stroke-width: 3;
+    filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.3));
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .wire.active {
+    stroke: var(--wire-active);
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6));
+    stroke-width: 3.5px;
+  }
+
+  .wire:hover {
+    stroke-width: 4;
+    filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.6));
+  }
+
+  .ghost-wire {
+    stroke: #94a3b8;
+    stroke-width: 2;
+    fill: none;
+    stroke-dasharray: 8 4;
+    opacity: 0.7;
+    animation: dash 1s linear infinite;
+  }
+
+  @keyframes dash {
+    to { stroke-dashoffset: -12; }
+  }
+
+  /* Drag preview */
+  .drag-preview {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.8;
+    transform: scale(0.9);
+    filter: drop-shadow(0 8px 25px rgba(0, 0, 0, 0.4));
+    transition: transform 0.1s ease;
+  }
+
+  /* Enhanced Nodes */
+  .node {
+    position: absolute;
+    min-width: 180px;
+    min-height: 120px;
+    background: var(--gate);
+    border: 1px solid var(--gate-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 25px var(--shadow);
+    padding: 12px;
+    cursor: move;
+    z-index: 10;
+    resize: both;
+    overflow: hidden;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .node:hover {
+    border-color: var(--accent);
+    box-shadow: 0 12px 40px var(--shadow);
+  }
+
+  .node.selected {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow: 0 12px 40px var(--shadow), 0 0 0 4px rgba(59, 130, 246, 0.2);
+  }
+
+  .node.dragging {
+    z-index: 100;
+    transform: rotate(2deg);
+    box-shadow: 0 20px 60px var(--shadow);
+  }
+
+  .node .resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    background: var(--resize-handle);
+    cursor: nw-resize;
+    clip-path: polygon(100% 0%, 0% 100%, 100% 100%);
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .node:hover .resize-handle {
+    opacity: 0.8;
+  }
+
+  .resize-handle:hover {
+    opacity: 1 !important;
+    background: var(--accent);
+  }
+
+  .node-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    cursor: move;
+  }
+
+  .node-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.025em;
+  }
+
+  .node-close {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    background: #374151;
+    color: var(--text-muted);
+    border: 1px solid #4b5563;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .node-close:hover {
+    background: var(--error);
+    color: white;
+    border-color: var(--error);
+    transform: scale(1.1) rotate(90deg);
+  }
+
+  .node-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    height: calc(100% - 48px);
+  }
+
+  .pins-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pin {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel-light);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .pin:hover {
+    border-color: var(--accent);
+    background: #1e293b;
+  }
+
+  .pin-bubble {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--pin);
+    border: 2px solid #64748b;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+  }
+
+  .pin-bubble::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .pin-bubble:hover::before {
+    opacity: 0.2;
+    transform: scale(1.2);
+  }
+
+  .pin-bubble:hover {
+    transform: scale(1.15);
+    border-color: var(--accent);
+  }
+
+  .pin.active .pin-bubble {
+    background: var(--pin-active);
+    border-color: var(--pin-active);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.6); }
+    50% { box-shadow: 0 0 24px rgba(16, 185, 129, 0.8); }
+  }
+
+  .pin-label {
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .gate-symbol {
+    flex: 1;
+    height: 80px;
+    background: var(--panel);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gate-symbol::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(59, 130, 246, 0.1) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+
+  .node:hover .gate-symbol::before {
+    transform: translateX(100%);
+  }
+
+  .gate-symbol svg {
+    width: 100%;
+    height: 100%;
+    max-width: 120px;
+    max-height: 70px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+
+  .symbol-stroke {
+    stroke: var(--text);
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .symbol-fill {
+    fill: var(--text);
+  }
+
+  .symbol-text {
+    fill: var(--text);
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  /* Controls Panel */
+  .controls {
+    grid-area: controls;
+    background: var(--panel-light);
+    border-left: 1px solid #334155;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .control-section {
+    margin-bottom: 24px;
+  }
+
+  .control-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 14px; font-weight: 600;
+    color: var(--text);
+    border-bottom: 1px solid #475569;
+    padding-bottom: 8px;
+  }
+
+  .input-group {
+    background: var(--panel);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .input-group:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .input-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .input-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .input-value {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-weight: 600;
+    min-width: 32px;
+    text-align: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .input-value.high {
+    background: var(--success);
+    color: white;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+  }
+
+  .input-value.low {
+    background: #64748b;
+    color: white;
+  }
+
+  .input-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .input-btn {
+    background: var(--panel-light);
+    color: var(--text-muted);
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
+  }
+
+  .input-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .input-btn.active {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+  }
+
+  .output-item {
+    background: var(--panel);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .output-item:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .output-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .output-indicator {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 2px solid #64748b;
+    background: #374151;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+  }
+
+  .output-indicator.active {
+    background: var(--success);
+    border-color: var(--success);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+    color: white;
+    animation: pulse 2s infinite;
+  }
+
+  .truth-table {
+    background: var(--panel);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    overflow: hidden;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .truth-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .truth-table th,
+  .truth-table td {
+    padding: 8px 12px;
+    text-align: center;
+    border-bottom: 1px solid #475569;
+  }
+
+  .truth-table th {
+    background: var(--panel-light);
+    font-weight: 600;
+    color: var(--text);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .truth-table td {
+    color: var(--text-muted);
+  }
+
+  .truth-table tr.current {
+    background: var(--accent);
+    animation: highlight 1s ease;
+  }
+
+  .truth-table tr.current td {
+    color: white;
+    font-weight: 600;
+  }
+
+  @keyframes highlight {
+    0% { background: var(--success); }
+    100% { background: var(--accent); }
+  }
+
+  .analysis-item {
+    background: var(--panel);
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .analysis-item:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .analysis-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .analysis-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .analysis-label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .analysis-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--panel-light);
+    transition: all 0.2s ease;
+  }
+
+  /* Footer */
+  .footer {
+    grid-area: footer;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border-top: 1px solid #334155;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 20px;
+    font-size: 12px;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-indicator {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: breathe 2s infinite;
+  }
+
+  .status-indicator.warning {
+    background: var(--warning);
+  }
+
+  .status-indicator.error {
+    background: var(--error);
+  }
+
+  @keyframes breathe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* Responsive */
+  @media (max-width: 1200px) {
+    .main-frame {
+      grid-template-columns: 240px 1fr 280px;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .main-frame {
+      grid-template-columns: 200px 1fr 260px;
+    }
+    .node {
+      min-width: 160px;
+      min-height: 100px;
+    }
+  }
+
+  /* Smooth animations */
+  .smooth-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .bounce-in {
+    animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  @keyframes bounceIn {
+    0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+    50% { transform: scale(1.1) rotate(5deg); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="app-container">
+  <div class="main-frame">
+    <!-- Header -->
+    <header class="header">
+      <h1>Logic Gate Simulator</h1>
+      <div class="badge">Enhanced Edition</div>
+      <div class="spacer"></div>
+      <div class="header-controls">
+        <button class="btn" id="btn-new">New</button>
+        <button class="btn" id="btn-open">Open</button>
+        <button class="btn" id="btn-save">Save</button>
+        <button class="btn" id="btn-clear">Clear</button>
+        <div class="toggle active" id="snap-toggle">Snap</div>
+      </div>
+    </header>
+
+    <!-- Palette -->
+    <aside class="palette">
+      <h2>Logic Gates</h2>
+      
+      <div class="gate-item" draggable="true" data-type="INPUT">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <rect class="symbol-stroke" x="3" y="6" width="24" height="14" rx="2" />
+            <text x="15" y="13" class="symbol-text" font-size="6">IN</text>
+            <line class="symbol-stroke" x1="27" y1="13" x2="37" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>Input Source</h3>
+          <p>Manual 0/1 signal</p>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="AND">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <path class="symbol-stroke" d="M6 4 L20 4 L20 22 L6 22 Z" />
+            <path class="symbol-stroke" d="M20 4 A9 9 0 0 1 20 22" />
+            <line class="symbol-stroke" x1="2" y1="9" x2="6" y2="9"/>
+            <line class="symbol-stroke" x1="2" y1="17" x2="6" y2="17"/>
+            <line class="symbol-stroke" x1="29" y1="13" x2="38" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>AND Gate</h3>
+          <p>Q = A ∧ B</p>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="OR">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <path class="symbol-stroke" d="M6 4 Q16 4 24 13 Q16 22 6 22" />
+            <path class="symbol-stroke" d="M10 4 Q22 13 10 22" />
+            <line class="symbol-stroke" x1="2" y1="9" x2="8" y2="9"/>
+            <line class="symbol-stroke" x1="2" y1="17" x2="8" y2="17"/>
+            <line class="symbol-stroke" x1="30" y1="13" x2="38" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>OR Gate</h3>
+          <p>Q = A ∨ B</p>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="NOT">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <path class="symbol-stroke" d="M6 4 L24 13 L6 22 Z" />
+            <circle class="symbol-fill" cx="27" cy="13" r="2"/>
+            <line class="symbol-stroke" x1="2" y1="13" x2="6" y2="13"/>
+            <line class="symbol-stroke" x1="29" y1="13" x2="38" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>NOT Gate</h3>
+          <p>Q = ¬A</p>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="NAND">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <path class="symbol-stroke" d="M6 4 L18 4 L18 22 L6 22 Z" />
+            <path class="symbol-stroke" d="M18 4 A9 9 0 0 1 18 22" />
+            <circle class="symbol-fill" cx="29" cy="13" r="2"/>
+            <line class="symbol-stroke" x1="2" y1="9" x2="6" y2="9"/>
+            <line class="symbol-stroke" x1="2" y1="17" x2="6" y2="17"/>
+            <line class="symbol-stroke" x1="31" y1="13" x2="38" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>NAND Gate</h3>
+          <p>Q = ¬(A ∧ B)</p>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="NOR">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <path class="symbol-stroke" d="M8 4 Q18 4 26 13 Q18 22 8 22" />
+            <path class="symbol-stroke" d="M12 4 Q24 13 12 22" />
+            <circle class="symbol-fill" cx="30" cy="13" r="2"/>
+            <line class="symbol-stroke" x1="2" y1="9" x2="8" y2="9"/>
+            <line class="symbol-stroke" x1="2" y1="17" x2="8" y2="17"/>
+            <line class="symbol-stroke" x1="32" y1="13" x2="38" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>NOR Gate</h3>
+          <p>Q = ¬(A ∨ B)</p>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="XOR">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <path class="symbol-stroke" d="M6 4 Q16 4 24 13 Q16 22 6 22" />
+            <path class="symbol-stroke" d="M10 4 Q22 13 10 22" />
+            <path class="symbol-stroke" d="M4 4 Q14 4 22 13 Q14 22 4 22" />
+            <line class="symbol-stroke" x1="2" y1="9" x2="5" y2="9"/>
+            <line class="symbol-stroke" x1="2" y1="17" x2="5" y2="17"/>
+            <line class="symbol-stroke" x1="30" y1="13" x2="38" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>XOR Gate</h3>
+          <p>Q = A ⊕ B</p>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="XNOR">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <path class="symbol-stroke" d="M8 4 Q18 4 26 13 Q18 22 8 22" />
+            <path class="symbol-stroke" d="M12 4 Q24 13 12 22" />
+            <path class="symbol-stroke" d="M6 4 Q16 4 24 13 Q16 22 6 22" />
+            <circle class="symbol-fill" cx="30" cy="13" r="2"/>
+            <line class="symbol-stroke" x1="2" y1="9" x2="7" y2="9"/>
+            <line class="symbol-stroke" x1="2" y1="17" x2="7" y2="17"/>
+            <line class="symbol-stroke" x1="32" y1="13" x2="38" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>XNOR Gate</h3>
+          <p>Q = ¬(A ⊕ B)</p>
+        </div>
+      </div>
+
+      <div class="gate-item" draggable="true" data-type="OUTPUT">
+        <div class="gate-icon">
+          <svg viewBox="0 0 40 26">
+            <rect class="symbol-stroke" x="13" y="6" width="24" height="14" rx="2" />
+            <text x="25" y="13" class="symbol-text" font-size="5">OUT</text>
+            <line class="symbol-stroke" x1="2" y1="13" x2="13" y2="13"/>
+          </svg>
+        </div>
+        <div class="gate-info">
+          <h3>Output Display</h3>
+          <p>Shows result</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Canvas -->
+    <main class="canvas" id="canvas">
+      <svg class="wires-svg" id="wires-svg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+    </main>
+
+    <!-- Controls -->
+    <aside class="controls">
+      <div class="control-section">
+        <h3>Manual Inputs</h3>
+        <div id="manual-inputs">
+          <div class="input-group" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            Add INPUT gates to control manually
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>Output Monitors</h3>
+        <div id="output-monitors">
+          <div class="output-item" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            Add OUTPUT gates to monitor results
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>Truth Table</h3>
+        <div class="truth-table">
+          <table id="truth-table">
+            <thead></thead>
+            <tbody>
+              <tr><td style="padding: 24px; text-align: center; color: var(--text-muted);">No inputs/outputs available</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>Circuit Analysis</h3>
+        <div class="analysis-item">
+          <div class="analysis-row">
+            <span class="analysis-label">Gate Count</span>
+            <span class="analysis-value" id="gate-count">0</span>
+          </div>
+          <div class="analysis-row">
+            <span class="analysis-label">Connection Count</span>
+            <span class="analysis-value" id="connection-count">0</span>
+          </div>
+          <div class="analysis-row">
+            <span class="analysis-label">Circuit Status</span>
+            <span class="analysis-value" id="circuit-status">Ready</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="status-item">
+        <div class="status-indicator" id="sim-indicator"></div>
+        <span id="sim-status">Ready</span>
+      </div>
+      <div class="status-item">
+        <span>Nodes: <strong id="node-count">0</strong></span>
+      </div>
+      <div class="status-item">
+        <span>Wires: <strong id="wire-count">0</strong></span>
+      </div>
+      <div class="spacer"></div>
+      <div class="status-item">
+        <span>Logic Gate Simulator v2.2 - Enhanced</span>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  class LogicSimulator {
+    constructor() {
+      this.nodes = new Map();
+      this.wires = new Map();
+      this.nodeOutputs = new Map();
+      this.nodeInputs = new Map();
+      this.idCounter = 1;
+      this.snap = true;
+      this.GRID_SIZE = 24;
+      this.dragPreview = null;
+      
+      this.initializeElements();
+      this.setupEventListeners();
+      this.initializeCanvas();
+    }
+
+    initializeElements() {
+      this.canvas = document.getElementById('canvas');
+      this.wiresSvg = document.getElementById('wires-svg');
+      this.manualInputsPanel = document.getElementById('manual-inputs');
+      this.outputMonitorsPanel = document.getElementById('output-monitors');
+      this.truthTable = document.getElementById('truth-table');
+      this.simStatus = document.getElementById('sim-status');
+      this.simIndicator = document.getElementById('sim-indicator');
+      this.nodeCount = document.getElementById('node-count');
+      this.wireCount = document.getElementById('wire-count');
+      this.snapToggle = document.getElementById('snap-toggle');
+      this.gateCount = document.getElementById('gate-count');
+      this.connectionCount = document.getElementById('connection-count');
+      this.circuitStatus = document.getElementById('circuit-status');
+    }
+
+    setupEventListeners() {
+      // Toolbar buttons
+      document.getElementById('btn-new').addEventListener('click', () => this.newCircuit());
+      document.getElementById('btn-open').addEventListener('click', () => this.openCircuit());
+      document.getElementById('btn-save').addEventListener('click', () => this.saveCircuit());
+      document.getElementById('btn-clear').addEventListener('click', () => this.clearWires());
+      
+      // Toggle
+      this.snapToggle.addEventListener('click', () => this.toggleSnap());
+
+      // Enhanced palette drag and drop
+      this.setupEnhancedPaletteDragDrop();
+      
+      // Canvas interactions
+      this.setupCanvasInteractions();
+    }
+
+    setupEnhancedPaletteDragDrop() {
+      const palette = document.querySelector('.palette');
+      
+      palette.addEventListener('dragstart', (e) => {
+        const gateItem = e.target.closest('.gate-item');
+        if (gateItem) {
+          e.dataTransfer.setData('gate-type', gateItem.dataset.type);
+          
+          // Create enhanced drag preview
+          this.createDragPreview(gateItem, e);
+          
+          // Add visual feedback
+          gateItem.style.opacity = '0.5';
+          setTimeout(() => {
+            if (gateItem) gateItem.style.opacity = '1';
+          }, 100);
+        }
+      });
+
+      palette.addEventListener('dragend', (e) => {
+        this.removeDragPreview();
+      });
+
+      // Enhanced canvas drop handling
+      this.canvas.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        
+        // Update drag preview position
+        if (this.dragPreview) {
+          this.dragPreview.style.left = (e.clientX - 40) + 'px';
+          this.dragPreview.style.top = (e.clientY - 20) + 'px';
+        }
+      });
+      
+      this.canvas.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const gateType = e.dataTransfer.getData('gate-type');
+        if (!gateType) return;
+
+        const pos = this.getCanvasCoords(e.clientX, e.clientY);
+        const x = this.snap ? Math.round(pos.x / this.GRID_SIZE) * this.GRID_SIZE : pos.x;
+        const y = this.snap ? Math.round(pos.y / this.GRID_SIZE) * this.GRID_SIZE : pos.y;
+        
+        // Create node with bounce animation
+        const nodeId = this.createNode(gateType, x, y);
+        if (nodeId) {
+          const node = this.nodes.get(nodeId);
+          if (node && node.element) {
+            node.element.classList.add('bounce-in');
+            setTimeout(() => {
+              node.element.classList.remove('bounce-in');
+            }, 500);
+          }
+        }
+        
+        this.removeDragPreview();
+      });
+
+      this.canvas.addEventListener('dragleave', (e) => {
+        // Only remove preview if actually leaving canvas
+        if (!e.relatedTarget || !this.canvas.contains(e.relatedTarget)) {
+          this.removeDragPreview();
+        }
+      });
+    }
+
+    createDragPreview(gateItem, e) {
+      this.dragPreview = gateItem.cloneNode(true);
+      this.dragPreview.classList.add('drag-preview');
+      this.dragPreview.style.position = 'fixed';
+      this.dragPreview.style.left = (e.clientX - 40) + 'px';
+      this.dragPreview.style.top = (e.clientY - 20) + 'px';
+      this.dragPreview.style.width = '200px';
+      this.dragPreview.style.pointerEvents = 'none';
+      this.dragPreview.style.zIndex = '1000';
+      document.body.appendChild(this.dragPreview);
+    }
+
+    removeDragPreview() {
+      if (this.dragPreview) {
+        document.body.removeChild(this.dragPreview);
+        this.dragPreview = null;
+      }
+    }
+
+    setupCanvasInteractions() {
+      this.wireCreation = null;
+
+      // Wire creation
+      this.canvas.addEventListener('pointerdown', (e) => {
+        const outputBubble = e.target.closest('.pin.output .pin-bubble');
+        if (outputBubble) {
+          e.preventDefault();
+          this.startWireCreation(e, outputBubble);
+        }
+      });
+
+      document.addEventListener('pointermove', (e) => {
+        if (this.wireCreation) {
+          this.updateWireCreation(e);
+        }
+      });
+
+      document.addEventListener('pointerup', (e) => {
+        if (this.wireCreation) {
+          this.finishWireCreation(e);
+        }
+      });
+    }
+
+    initializeCanvas() {
+      this.updateCanvasSize();
+      window.addEventListener('resize', () => this.updateCanvasSize());
+      
+      // Create demo circuit
+      this.createDemoCircuit();
+    }
+
+    updateCanvasSize() {
+      const rect = this.canvas.getBoundingClientRect();
+      this.wiresSvg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+    }
+
+    // Enhanced node creation
+    createNode(type, x, y) {
+      const nodeId = `node_${this.idCounter++}`;
+      const nodeConfig = this.getNodeConfig(type);
+      
+      if (!nodeConfig) return null;
+
+      const nodeElement = this.createNodeElement(nodeId, type, nodeConfig, x, y);
+      this.canvas.appendChild(nodeElement);
+
+      const nodeData = {
+        id: nodeId,
+        type: type,
+        x: x,
+        y: y,
+        width: 180,
+        height: 120,
+        element: nodeElement,
+        state: type === 'INPUT' ? 0 : null,
+        manualInputs: {},
+        config: nodeConfig
+      };
+
+      this.nodes.set(nodeId, nodeData);
+      this.nodeOutputs.set(nodeId, []);
+      this.nodeInputs.set(nodeId, new Map());
+
+      this.setupNodeInteractions(nodeElement, nodeId, type);
+      this.updateUI();
+      this.evaluateCircuit();
+
+      return nodeId;
+    }
+
+    getNodeConfig(type) {
+      const configs = {
+        INPUT: { inputs: 0, outputs: 1, color: '#10b981' },
+        OUTPUT: { inputs: 1, outputs: 0, color: '#ef4444' },
+        AND: { inputs: 2, outputs: 1, color: '#3b82f6' },
+        OR: { inputs: 2, outputs: 1, color: '#8b5cf6' },
+        NOT: { inputs: 1, outputs: 1, color: '#f59e0b' },
+        NAND: { inputs: 2, outputs: 1, color: '#06b6d4' },
+        NOR: { inputs: 2, outputs: 1, color: '#84cc16' },
+        XOR: { inputs: 2, outputs: 1, color: '#f97316' },
+        XNOR: { inputs: 2, outputs: 1, color: '#ec4899' }
+      };
+      return configs[type];
+    }
+
+    createNodeElement(nodeId, type, config, x, y) {
+      const nodeEl = document.createElement('div');
+      nodeEl.className = 'node';
+      nodeEl.style.left = `${x}px`;
+      nodeEl.style.top = `${y}px`;
+      nodeEl.style.width = '180px';
+      nodeEl.style.height = '120px';
+      nodeEl.dataset.id = nodeId;
+      nodeEl.dataset.type = type;
+
+      nodeEl.innerHTML = `
+        <div class="node-header">
+          <div class="node-title">${type}</div>
+          <button class="node-close" title="Delete Node">×</button>
+        </div>
+        <div class="node-body">
+          <div class="pins-column inputs"></div>
+          <div class="gate-symbol">${this.getEnhancedGateSymbol(type)}</div>
+          <div class="pins-column outputs"></div>
+        </div>
+        <div class="resize-handle" title="Resize node"></div>
+      `;
+
+      const inputsContainer = nodeEl.querySelector('.inputs');
+      const outputsContainer = nodeEl.querySelector('.outputs');
+
+      // Create input pins
+      for (let i = 0; i < config.inputs; i++) {
+        const pin = document.createElement('div');
+        pin.className = 'pin input';
+        pin.dataset.pin = i;
+        const label = config.inputs === 2 ? (i === 0 ? 'A' : 'B') : 'A';
+        pin.innerHTML = `
+          <span class="pin-label">${label}</span>
+          <span class="pin-bubble" data-pin="${i}"></span>
+        `;
+        inputsContainer.appendChild(pin);
+      }
+
+      // Create output pins
+      for (let i = 0; i < config.outputs; i++) {
+        const pin = document.createElement('div');
+        pin.className = 'pin output';
+        pin.dataset.pin = i;
+        pin.innerHTML = `
+          <span class="pin-bubble" data-pin="${i}"></span>
+          <span class="pin-label">Q</span>
+        `;
+        outputsContainer.appendChild(pin);
+      }
+
+      return nodeEl;
+    }
+
+    setupNodeInteractions(nodeElement, nodeId, type) {
+      // Delete button
+      const closeBtn = nodeElement.querySelector('.node-close');
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.deleteNode(nodeId);
+      });
+
+      // Enhanced node dragging and resizing
+      this.setupSmoothNodeDragging(nodeElement, nodeId);
+      this.setupNodeResizing(nodeElement, nodeId);
+
+      // Input interactions
+      if (type === 'INPUT') {
+        const outputBubble = nodeElement.querySelector('.pin.output .pin-bubble');
+        outputBubble.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleInputState(nodeId);
+        });
+      }
+
+      // Manual input testing
+      nodeElement.querySelectorAll('.pin.input .pin-bubble').forEach(bubble => {
+        bubble.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const pinIndex = parseInt(bubble.dataset.pin, 10);
+          this.toggleManualInput(nodeId, pinIndex);
+        });
+      });
+    }
+
+    setupSmoothNodeDragging(nodeElement, nodeId) {
+      let isDragging = false;
+      let startPos = { x: 0, y: 0 };
+      let nodeStartPos = { x: 0, y: 0 };
+      let rafId = null;
+
+      const nodeHeader = nodeElement.querySelector('.node-header');
+      
+      nodeHeader.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.node-close')) return;
+        
+        isDragging = true;
+        nodeElement.setPointerCapture(e.pointerId);
+        nodeElement.classList.add('selected', 'dragging');
+        
+        startPos.x = e.clientX;
+        startPos.y = e.clientY;
+        nodeStartPos.x = parseFloat(nodeElement.style.left) || 0;
+        nodeStartPos.y = parseFloat(nodeElement.style.top) || 0;
+
+        // Cancel any existing animation
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+      });
+
+      nodeElement.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        
+        // Use RAF for smooth dragging
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+        
+        rafId = requestAnimationFrame(() => {
+          const deltaX = e.clientX - startPos.x;
+          const deltaY = e.clientY - startPos.y;
+          
+          let newX = nodeStartPos.x + deltaX;
+          let newY = nodeStartPos.y + deltaY;
+          
+          if (this.snap) {
+            newX = Math.round(newX / this.GRID_SIZE) * this.GRID_SIZE;
+            newY = Math.round(newY / this.GRID_SIZE) * this.GRID_SIZE;
+          }
+          
+          nodeElement.style.left = `${newX}px`;
+          nodeElement.style.top = `${newY}px`;
+          
+          const node = this.nodes.get(nodeId);
+          node.x = newX;
+          node.y = newY;
+          
+          this.redrawWires();
+        });
+      });
+
+      nodeElement.addEventListener('pointerup', (e) => {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        nodeElement.releasePointerCapture(e.pointerId);
+        nodeElement.classList.remove('selected', 'dragging');
+        
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+      });
+    }
+
+    setupNodeResizing(nodeElement, nodeId) {
+      let isResizing = false;
+      let startPos = { x: 0, y: 0 };
+      let startSize = { width: 0, height: 0 };
+      let rafId = null;
+
+      const resizeHandle = nodeElement.querySelector('.resize-handle');
+      
+      resizeHandle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        isResizing = true;
+        nodeElement.setPointerCapture(e.pointerId);
+        
+        startPos.x = e.clientX;
+        startPos.y = e.clientY;
+        startSize.width = parseInt(nodeElement.style.width) || 180;
+        startSize.height = parseInt(nodeElement.style.height) || 120;
+      });
+
+      nodeElement.addEventListener('pointermove', (e) => {
+        if (!isResizing) return;
+        
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+        
+        rafId = requestAnimationFrame(() => {
+          const deltaX = e.clientX - startPos.x;
+          const deltaY = e.clientY - startPos.y;
+          
+          let newWidth = Math.max(160, startSize.width + deltaX);
+          let newHeight = Math.max(100, startSize.height + deltaY);
+          
+          if (this.snap) {
+            newWidth = Math.round(newWidth / this.GRID_SIZE) * this.GRID_SIZE;
+            newHeight = Math.round(newHeight / this.GRID_SIZE) * this.GRID_SIZE;
+          }
+          
+          nodeElement.style.width = `${newWidth}px`;
+          nodeElement.style.height = `${newHeight}px`;
+          
+          const node = this.nodes.get(nodeId);
+          node.width = newWidth;
+          node.height = newHeight;
+          
+          this.redrawWires();
+        });
+      });
+
+      nodeElement.addEventListener('pointerup', (e) => {
+        if (!isResizing) return;
+        
+        isResizing = false;
+        nodeElement.releasePointerCapture(e.pointerId);
+        
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+      });
+    }
+
+    deleteNode(nodeId) {
+      // Remove connected wires
+      const outputs = this.nodeOutputs.get(nodeId) || [];
+      outputs.slice().forEach(wireId => this.deleteWire(wireId));
+      
+      const inputs = this.nodeInputs.get(nodeId) || new Map();
+      inputs.forEach(wireId => this.deleteWire(wireId));
+
+      // Remove node element with animation
+      const node = this.nodes.get(nodeId);
+      if (node && node.element && node.element.parentNode) {
+        node.element.style.transition = 'all 0.3s ease';
+        node.element.style.transform = 'scale(0) rotate(45deg)';
+        node.element.style.opacity = '0';
+        
+        setTimeout(() => {
+          if (node.element && node.element.parentNode) {
+            node.element.parentNode.removeChild(node.element);
+          }
+        }, 300);
+      }
+
+      // Clean up data structures
+      this.nodes.delete(nodeId);
+      this.nodeOutputs.delete(nodeId);
+      this.nodeInputs.delete(nodeId);
+
+      this.updateUI();
+      this.evaluateCircuit();
+    }
+
+    // Wire creation and management
+    startWireCreation(e, outputBubble) {
+      const nodeElement = outputBubble.closest('.node');
+      const pinIndex = parseInt(outputBubble.dataset.pin, 10);
+      
+      this.wireCreation = {
+        fromNode: nodeElement.dataset.id,
+        fromPin: pinIndex,
+        ghostPath: this.createGhostPath()
+      };
+      
+      this.updateWireCreation(e);
+    }
+
+    updateWireCreation(e) {
+      if (!this.wireCreation) return;
+      
+      const fromNode = this.nodes.get(this.wireCreation.fromNode);
+      const fromBubble = fromNode.element.querySelector(
+        `.pin.output[data-pin="${this.wireCreation.fromPin}"] .pin-bubble`
+      );
+      
+      const fromPos = this.getBubbleCenter(fromBubble);
+      const toPos = this.getCanvasCoords(e.clientX, e.clientY);
+      
+      const pathData = this.createBezierPath(fromPos, toPos);
+      this.wireCreation.ghostPath.setAttribute('d', pathData);
+    }
+
+    finishWireCreation(e) {
+      if (!this.wireCreation) return;
+      
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      const inputBubble = target?.closest('.pin.input .pin-bubble');
+      
+      if (inputBubble) {
+        const toNode = inputBubble.closest('.node').dataset.id;
+        const toPin = parseInt(inputBubble.dataset.pin, 10);
+        
+        // Remove existing wire to this input
+        const existingWire = this.nodeInputs.get(toNode)?.get(toPin);
+        if (existingWire) {
+          this.deleteWire(existingWire);
+        }
+        
+        this.createWire(this.wireCreation.fromNode, this.wireCreation.fromPin, toNode, toPin);
+      }
+      
+      // Clean up
+      if (this.wireCreation.ghostPath && this.wireCreation.ghostPath.parentNode) {
+        this.wireCreation.ghostPath.parentNode.removeChild(this.wireCreation.ghostPath);
+      }
+      this.wireCreation = null;
+    }
+
+    createGhostPath() {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('class', 'ghost-wire');
+      this.wiresSvg.appendChild(path);
+      return path;
+    }
+
+    createWire(fromNodeId, fromPin, toNodeId, toPin) {
+      const wireId = `wire_${this.idCounter++}`;
+      
+      const wireData = {
+        id: wireId,
+        from: { node: fromNodeId, pin: fromPin },
+        to: { node: toNodeId, pin: toPin }
+      };
+      
+      this.wires.set(wireId, wireData);
+      this.nodeOutputs.get(fromNodeId).push(wireId);
+      this.nodeInputs.get(toNodeId).set(toPin, wireId);
+      
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('class', 'wire');
+      path.dataset.id = wireId;
+      
+      path.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        this.deleteWire(wireId);
+      });
+      
+      this.wiresSvg.appendChild(path);
+      
+      this.redrawWires();
+      this.updateUI();
+      this.evaluateCircuit();
+      
+      return wireId;
+    }
+
+    deleteWire(wireId) {
+      const wire = this.wires.get(wireId);
+      if (!wire) return;
+      
+      // Remove from node outputs
+      const outputs = this.nodeOutputs.get(wire.from.node);
+      if (outputs) {
+        const index = outputs.indexOf(wireId);
+        if (index >= 0) outputs.splice(index, 1);
+      }
+      
+      // Remove from node inputs
+      const inputs = this.nodeInputs.get(wire.to.node);
+      if (inputs && inputs.get(wire.to.pin) === wireId) {
+        inputs.delete(wire.to.pin);
+      }
+      
+      // Remove visual element with animation
+      const pathEl = this.wiresSvg.querySelector(`path[data-id="${wireId}"]`);
+      if (pathEl && pathEl.parentNode) {
+        pathEl.style.transition = 'opacity 0.3s ease';
+        pathEl.style.opacity = '0';
+        setTimeout(() => {
+          if (pathEl.parentNode) {
+            pathEl.parentNode.removeChild(pathEl);
+          }
+        }, 300);
+      }
+      
+      this.wires.delete(wireId);
+      this.updateUI();
+      this.evaluateCircuit();
+    }
+
+    // Logic evaluation
+    evaluateNode(nodeId, memo = new Map()) {
+      if (memo.has(nodeId)) return memo.get(nodeId);
+      
+      const node = this.nodes.get(nodeId);
+      if (!node) return 0;
+      
+      let result = 0;
+      
+      switch (node.type) {
+        case 'INPUT':
+          result = node.state ? 1 : 0;
+          break;
+          
+        case 'OUTPUT':
+          result = this.getInputValue(nodeId, 0, memo);
+          break;
+          
+        case 'NOT':
+          result = this.getInputValue(nodeId, 0, memo) ? 0 : 1;
+          break;
+          
+        case 'AND':
+          result = (this.getInputValue(nodeId, 0, memo) && 
+                   this.getInputValue(nodeId, 1, memo)) ? 1 : 0;
+          break;
+          
+        case 'OR':
+          result = (this.getInputValue(nodeId, 0, memo) || 
+                   this.getInputValue(nodeId, 1, memo)) ? 1 : 0;
+          break;
+          
+        case 'NAND':
+          result = (this.getInputValue(nodeId, 0, memo) && 
+                   this.getInputValue(nodeId, 1, memo)) ? 0 : 1;
+          break;
+          
+        case 'NOR':
+          result = (this.getInputValue(nodeId, 0, memo) || 
+                   this.getInputValue(nodeId, 1, memo)) ? 0 : 1;
+          break;
+          
+        case 'XOR':
+          result = (this.getInputValue(nodeId, 0, memo) !== 
+                   this.getInputValue(nodeId, 1, memo)) ? 1 : 0;
+          break;
+          
+        case 'XNOR':
+          result = (this.getInputValue(nodeId, 0, memo) === 
+                   this.getInputValue(nodeId, 1, memo)) ? 1 : 0;
+          break;
+      }
+      
+      memo.set(nodeId, result);
+      return result;
+    }
+
+    getInputValue(nodeId, pinIndex, memo = new Map()) {
+      const inputMap = this.nodeInputs.get(nodeId);
+      if (!inputMap || !inputMap.has(pinIndex)) {
+        const node = this.nodes.get(nodeId);
+        return (node.manualInputs && node.manualInputs[pinIndex]) ? 1 : 0;
+      }
+      
+      const wireId = inputMap.get(pinIndex);
+      const wire = this.wires.get(wireId);
+      return this.evaluateNode(wire.from.node, memo);
+    }
+
+    evaluateCircuit() {
+      // Check for cycles
+      const hasCycle = this.detectCycles();
+      
+      // Update status
+      this.simStatus.textContent = hasCycle ? 'Feedback Loop Detected' : 'Stable';
+      this.simIndicator.className = hasCycle ? 'status-indicator error' : 'status-indicator';
+      this.circuitStatus.textContent = hasCycle ? 'Error' : 'Stable';
+      
+      // Update all node displays
+      this.nodes.forEach((node, nodeId) => {
+        this.updateNodeDisplay(nodeId);
+      });
+      
+      this.updateWireColors();
+      this.updateManualInputsPanel();
+      this.updateOutputMonitorsPanel();
+      this.updateTruthTable();
+    }
+
+    updateNodeDisplay(nodeId) {
+      const node = this.nodes.get(nodeId);
+      if (!node) return;
+      
+      const element = node.element;
+      
+      // Update input pins
+      const inputMap = this.nodeInputs.get(nodeId);
+      element.querySelectorAll('.pin.input').forEach(pin => {
+        const pinIndex = parseInt(pin.dataset.pin, 10);
+        const value = this.getInputValue(nodeId, pinIndex);
+        pin.classList.toggle('active', !!value);
+      });
+      
+      // Update output pins
+      element.querySelectorAll('.pin.output').forEach(pin => {
+        const value = this.evaluateNode(nodeId);
+        pin.classList.toggle('active', !!value);
+      });
+      
+      // Update OUTPUT node title
+      if (node.type === 'OUTPUT') {
+        const title = element.querySelector('.node-title');
+        title.textContent = `OUTPUT: ${this.evaluateNode(nodeId)}`;
+      }
+    }
+
+    updateWireColors() {
+      this.wires.forEach(wire => {
+        const value = this.evaluateNode(wire.from.node);
+        const pathEl = this.wiresSvg.querySelector(`path[data-id="${wire.id}"]`);
+        if (pathEl) {
+          pathEl.classList.toggle('active', !!value);
+        }
+      });
+    }
+
+    // UI Management
+    updateManualInputsPanel() {
+      const inputs = Array.from(this.nodes.values()).filter(node => node.type === 'INPUT');
+      
+      this.manualInputsPanel.innerHTML = '';
+      
+      if (inputs.length === 0) {
+      this.manualInputsPanel.innerHTML = `
+          <div class="input-group" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            Add INPUT gates to control manually
+          </div>
+        `;
+        return;
+      }
+      
+      inputs.forEach((node, index) => {
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'input-group';
+        
+        inputGroup.innerHTML = `
+          <div class="input-header">
+            <span class="input-name">Input ${String.fromCharCode(65 + index)}</span>
+            <span class="input-value ${node.state ? 'high' : 'low'}">${node.state ? '1' : '0'}</span>
+          </div>
+          <div class="input-controls">
+            <button class="input-btn ${node.state === 0 ? 'active' : ''}" data-value="0">Set Low (0)</button>
+            <button class="input-btn ${node.state === 1 ? 'active' : ''}" data-value="1">Set High (1)</button>
+          </div>
+        `;
+        
+        inputGroup.querySelectorAll('.input-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const value = parseInt(btn.dataset.value, 10);
+            this.setInputState(node.id, value);
+          });
+        });
+        
+        this.manualInputsPanel.appendChild(inputGroup);
+      });
+    }
+
+    updateOutputMonitorsPanel() {
+      const outputs = Array.from(this.nodes.values()).filter(node => node.type === 'OUTPUT');
+      
+      this.outputMonitorsPanel.innerHTML = '';
+      
+      if (outputs.length === 0) {
+      this.outputMonitorsPanel.innerHTML = `
+          <div class="output-item" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            Add OUTPUT gates to monitor results
+          </div>
+        `;
+        return;
+      }
+      
+      outputs.forEach((node, index) => {
+        const outputItem = document.createElement('div');
+        outputItem.className = 'output-item';
+        
+        const value = this.evaluateNode(node.id);
+        
+        outputItem.innerHTML = `
+          <div class="output-header">
+            <span class="output-name">Output ${String.fromCharCode(65 + index)}</span>
+            <div class="output-indicator ${value ? 'active' : ''}">${value ? '1' : '0'}</div>
+          </div>
+        `;
+        
+        this.outputMonitorsPanel.appendChild(outputItem);
+      });
+    }
+
+    updateTruthTable() {
+      const inputs = Array.from(this.nodes.values()).filter(node => node.type === 'INPUT');
+      const outputs = Array.from(this.nodes.values()).filter(node => node.type === 'OUTPUT');
+      
+      const thead = this.truthTable.querySelector('thead');
+      const tbody = this.truthTable.querySelector('tbody');
+      
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+      
+      if (inputs.length === 0 || outputs.length === 0) {
+        tbody.innerHTML = '<tr><td style="padding: 24px; text-align: center; color: var(--text-muted);">No inputs/outputs available</td></tr>';
+        return;
+      }
+      
+      // Create header
+      const headerRow = document.createElement('tr');
+      inputs.forEach((_, index) => {
+        const th = document.createElement('th');
+        th.textContent = String.fromCharCode(65 + index);
+        headerRow.appendChild(th);
+      });
+      outputs.forEach((_, index) => {
+        const th = document.createElement('th');
+        th.textContent = `Q${index + 1}`;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      
+      // Generate truth table rows
+      const numInputs = inputs.length;
+      const maxRows = Math.min(Math.pow(2, numInputs), 32); // Limit for performance
+      
+      for (let i = 0; i < maxRows; i++) {
+        const row = document.createElement('tr');
+        
+        // Set input values
+        const inputValues = [];
+        for (let j = 0; j < numInputs; j++) {
+          const value = (i >> (numInputs - 1 - j)) & 1;
+          inputValues.push(value);
+          this.setInputState(inputs[j].id, value, false);
+        }
+        
+        // Evaluate outputs
+        const outputValues = outputs.map(output => this.evaluateNode(output.id));
+        
+        // Check if current state
+        const isCurrentState = inputs.every((input, index) => 
+          input.state === inputValues[index]
+        );
+        
+        if (isCurrentState) {
+          row.className = 'current';
+        }
+        
+        // Add cells
+        inputValues.forEach(value => {
+          const td = document.createElement('td');
+          td.textContent = value;
+          row.appendChild(td);
+        });
+        
+        outputValues.forEach(value => {
+          const td = document.createElement('td');
+          td.textContent = value;
+          row.appendChild(td);
+        });
+        
+        tbody.appendChild(row);
+      }
+    }
+
+    // Utility methods
+    getCanvasCoords(clientX, clientY) {
+      const rect = this.canvas.getBoundingClientRect();
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    getBubbleCenter(bubbleEl) {
+      const bubbleRect = bubbleEl.getBoundingClientRect();
+      const canvasRect = this.canvas.getBoundingClientRect();
+      return {
+        x: bubbleRect.left - canvasRect.left + bubbleRect.width / 2,
+        y: bubbleRect.top - canvasRect.top + bubbleRect.height / 2
+      };
+    }
+
+    createBezierPath(from, to) {
+      const dx = Math.max(60, Math.abs(to.x - from.x) * 0.6);
+      const cp1x = from.x + dx;
+      const cp2x = to.x - dx;
+      return `M ${from.x} ${from.y} C ${cp1x} ${from.y}, ${cp2x} ${to.y}, ${to.x} ${to.y}`;
+    }
+
+    redrawWires() {
+      this.updateCanvasSize();
+      
+      this.wires.forEach(wire => {
+        const fromNode = this.nodes.get(wire.from.node);
+        const toNode = this.nodes.get(wire.to.node);
+        
+        if (!fromNode || !toNode) return;
+        
+        const fromBubble = fromNode.element.querySelector(
+          `.pin.output[data-pin="${wire.from.pin}"] .pin-bubble`
+        );
+        const toBubble = toNode.element.querySelector(
+          `.pin.input[data-pin="${wire.to.pin}"] .pin-bubble`
+        );
+        
+        if (!fromBubble || !toBubble) return;
+        
+        const fromPos = this.getBubbleCenter(fromBubble);
+        const toPos = this.getBubbleCenter(toBubble);
+        
+        const pathEl = this.wiresSvg.querySelector(`path[data-id="${wire.id}"]`);
+        if (pathEl) {
+          pathEl.setAttribute('d', this.createBezierPath(fromPos, toPos));
+        }
+      });
+    }
+
+    detectCycles() {
+      const graph = {};
+      this.nodes.forEach((_, nodeId) => {
+        graph[nodeId] = [];
+      });
+      
+      this.wires.forEach(wire => {
+        graph[wire.from.node].push(wire.to.node);
+      });
+      
+      const visited = new Set();
+      const recursionStack = new Set();
+      
+      const hasCycleDFS = (nodeId) => {
+        if (recursionStack.has(nodeId)) return true;
+        if (visited.has(nodeId)) return false;
+        
+        visited.add(nodeId);
+        recursionStack.add(nodeId);
+        
+        for (const neighbor of graph[nodeId]) {
+          if (hasCycleDFS(neighbor)) return true;
+        }
+        
+        recursionStack.delete(nodeId);
+        return false;
+      };
+      
+      for (const nodeId of Object.keys(graph)) {
+        if (hasCycleDFS(nodeId)) return true;
+      }
+      
+      return false;
+    }
+
+    updateUI() {
+      this.nodeCount.textContent = this.nodes.size;
+      this.wireCount.textContent = this.wires.size;
+      this.gateCount.textContent = this.nodes.size;
+      this.connectionCount.textContent = this.wires.size;
+    }
+
+    // Input/Output management
+    toggleInputState(nodeId) {
+      const node = this.nodes.get(nodeId);
+      if (node && node.type === 'INPUT') {
+        node.state = node.state ? 0 : 1;
+        this.evaluateCircuit();
+      }
+    }
+
+    setInputState(nodeId, value, evaluate = true) {
+      const node = this.nodes.get(nodeId);
+      if (node && node.type === 'INPUT') {
+        node.state = value ? 1 : 0;
+        if (evaluate) {
+          this.evaluateCircuit();
+        }
+      }
+    }
+
+    toggleManualInput(nodeId, pinIndex) {
+      const inputMap = this.nodeInputs.get(nodeId);
+      if (inputMap && inputMap.has(pinIndex)) return; // Pin is wired
+      
+      const node = this.nodes.get(nodeId);
+      if (!node.manualInputs) node.manualInputs = {};
+      
+      node.manualInputs[pinIndex] = node.manualInputs[pinIndex] ? 0 : 1;
+      this.evaluateCircuit();
+    }
+
+    // Enhanced gate symbols
+    getEnhancedGateSymbol(type) {
+      const symbols = {
+        'INPUT': `
+          <svg viewBox="0 0 100 60">
+            <rect class="symbol-stroke" x="10" y="15" width="50" height="30" rx="3" />
+            <text x="35" y="32" class="symbol-text" font-size="12">IN</text>
+            <line class="symbol-stroke" x1="60" y1="30" x2="90" y2="30"/>
+            <circle class="symbol-fill" cx="65" cy="30" r="2" opacity="0.8"/>
+          </svg>`,
+        
+        'OUTPUT': `
+          <svg viewBox="0 0 100 60">
+            <rect class="symbol-stroke" x="40" y="15" width="50" height="30" rx="3" />
+            <text x="65" y="32" class="symbol-text" font-size="10">OUT</text>
+            <line class="symbol-stroke" x1="10" y1="30" x2="40" y2="30"/>
+            <circle class="symbol-fill" cx="35" cy="30" r="2" opacity="0.8"/>
+          </svg>`,
+        
+        'AND': `
+          <svg viewBox="0 0 100 60">
+            <path class="symbol-stroke" d="M15 10 L45 10 L45 50 L15 50 Z" fill="rgba(59, 130, 246, 0.1)" />
+            <path class="symbol-stroke" d="M45 10 A20 20 0 0 1 45 50" />
+            <line class="symbol-stroke" x1="5" y1="20" x2="15" y2="20"/>
+            <line class="symbol-stroke" x1="5" y1="40" x2="15" y2="40"/>
+            <line class="symbol-stroke" x1="65" y1="30" x2="90" y2="30"/>
+            <circle class="symbol-fill" cx="10" cy="20" r="1.5" opacity="0.6"/>
+            <circle class="symbol-fill" cx="10" cy="40" r="1.5" opacity="0.6"/>
+          </svg>`,
+        
+        'OR':`
+          <svg viewBox="0 0 100 60">
+            <path class="symbol-stroke" d="M15 10 Q40 10 55 30 Q40 50 15 50" fill="rgba(139, 92, 246, 0.1)" />
+            <path class="symbol-stroke" d="M25 10 Q55 30 25 50" />
+            <line class="symbol-stroke" x1="5" y1="20" x2="20" y2="20"/>
+            <line class="symbol-stroke" x1="5" y1="40" x2="20" y2="40"/>
+            <line class="symbol-stroke" x1="70" y1="30" x2="90" y2="30"/>
+            <circle class="symbol-fill" cx="10" cy="20" r="1.5" opacity="0.6"/>
+            <circle class="symbol-fill" cx="10" cy="40" r="1.5" opacity="0.6"/>
+          </svg>`,
+    
+        'NOT': `
+          <svg viewBox="0 0 100 60">
+            <path class="symbol-stroke" d="M15 10 L65 30 L15 50 Z" fill="rgba(245, 158, 11, 0.1)" />
+            <circle class="symbol-fill" cx="73" cy="30" r="4"/>
+            <line class="symbol-stroke" x1="5" y1="30" x2="15" y2="30"/>
+            <line class="symbol-stroke" x1="77" y1="30" x2="90" y2="30"/>
+            <circle class="symbol-fill" cx="10" cy="30" r="1.5" opacity="0.6"/>
+          </svg>`,
+        
+        'NAND': `
+          <svg viewBox="0 0 100 60">
+            <path class="symbol-stroke" d="M15 10 L45 10 L45 50 L15 50 Z" fill="rgba(6, 182, 212, 0.1)" />
+            <path class="symbol-stroke" d="M45 10 A20 20 0 0 1 45 50" />
+            <circle class="symbol-fill" cx="73" cy="30" r="4"/>
+            <line class="symbol-stroke" x1="5" y1="20" x2="15" y2="20"/>
+            <line class="symbol-stroke" x1="5" y1="40" x2="15" y2="40"/>
+            <line class="symbol-stroke" x1="77" y1="30" x2="90" y2="30"/>
+            <circle class="symbol-fill" cx="10" cy="20" r="1.5" opacity="0.6"/>
+            <circle class="symbol-fill" cx="10" cy="40" r="1.5" opacity="0.6"/>
+          </svg>`,
+        
+        'NOR': `
+          <svg viewBox="0 0 100 60">
+            <path class="symbol-stroke" d="M20 10 Q45 10 60 30 Q45 50 20 50" fill="rgba(132, 204, 22, 0.1)" />
+            <path class="symbol-stroke" d="M30 10 Q60 30 30 50" />
+            <circle class="symbol-fill" cx="78" cy="30" r="4"/>
+            <line class="symbol-stroke" x1="5" y1="20" x2="20" y2="20"/>
+            <line class="symbol-stroke" x1="5" y1="40" x2="20" y2="40"/>
+            <line class="symbol-stroke" x1="82" y1="30" x2="90" y2="30"/>
+            <circle class="symbol-fill" cx="10" cy="20" r="1.5" opacity="0.6"/>
+            <circle class="symbol-fill" cx="10" cy="40" r="1.5" opacity="0.6"/>
+          </svg>`,
+        
+        'XOR':`
+          <svg viewBox="0 0 100 60">
+            <path class="symbol-stroke" d="M15 10 Q40 10 55 30 Q40 50 15 50" fill="rgba(249, 115, 22, 0.1)" />
+            <path class="symbol-stroke" d="M25 10 Q55 30 25 50" />
+            <path class="symbol-stroke" d="M10 10 Q35 10 50 30 Q35 50 10 50" />
+            <line class="symbol-stroke" x1="5" y1="20" x2="12" y2="20"/>
+            <line class="symbol-stroke" x1="5" y1="40" x2="12" y2="40"/>
+            <line class="symbol-stroke" x1="70" y1="30" x2="90" y2="30"/>
+            <circle class="symbol-fill" cx="8" cy="20" r="1.5" opacity="0.6"/>
+            <circle class="symbol-fill" cx="8" cy="40" r="1.5" opacity="0.6"/>
+          </svg>`,
+        
+        'XNOR': `
+          <svg viewBox="0 0 100 60">
+            <path class="symbol-stroke" d="M20 10 Q45 10 60 30 Q45 50 20 50" fill="rgba(236, 72, 153, 0.1)" />
+            <path class="symbol-stroke" d="M30 10 Q60 30 30 50" />
+            <path class="symbol-stroke" d="M15 10 Q40 10 55 30 Q40 50 15 50" />
+            <circle class="symbol-fill" cx="78" cy="30" r="4"/>
+            <line class="symbol-stroke" x1="5" y1="20" x2="17" y2="20"/>
+            <line class="symbol-stroke" x1="5" y1="40" x2="17" y2="40"/>
+            <line class="symbol-stroke" x1="82" y1="30" x2="90" y2="30"/>
+            <circle class="symbol-fill" cx="10" cy="20" r="1.5" opacity="0.6"/>
+            <circle class="symbol-fill" cx="10" cy="40" r="1.5" opacity="0.6"/>
+          </svg>`
+      };
+      
+      return symbols[type] || `<svg viewBox="0 0 100 60"><rect class="symbol-stroke" x="10" y="10" width="80" height="40" rx="5" fill="rgba(100, 116, 139, 0.1)"/></svg>`;
+    }
+
+    // File operations
+    newCircuit() {
+      if (confirm('Create a new circuit? This will clear the current circuit.')) {
+        this.clearAll();
+        this.createDemoCircuit();
+      }
+    }
+
+    openCircuit() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      
+      input.addEventListener('change', () => {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const data = JSON.parse(reader.result);
+            this.loadCircuit(data);
+          } catch (error) {
+            alert('Invalid file format');
+          }
+        };
+        reader.readAsText(file);
+      });
+      
+      input.click();
+    }
+
+    saveCircuit() {
+      const data = {
+        version: '2.2',
+        timestamp: new Date().toISOString(),
+        nodes: Array.from(this.nodes.values()).map(node => ({
+          id: node.id,
+          type: node.type,
+          x: node.x,
+          y: node.y,
+          width: node.width,
+          height: node.height,
+          state: node.state,
+          manualInputs: node.manualInputs
+        })),
+        wires: Array.from(this.wires.values())
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `logic-circuit-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    loadCircuit(data) {
+      this.clearAll();
+      
+      const nodeIdMap = new Map();
+      
+      // Recreate nodes
+      (data.nodes || []).forEach(nodeData => {
+        const newNodeId = this.createNode(nodeData.type, nodeData.x || 0, nodeData.y || 0);
+        const newNode = this.nodes.get(newNodeId);
+        
+        // Restore size and state
+        if (nodeData.width) newNode.element.style.width = `${nodeData.width}px`;
+        if (nodeData.height) newNode.element.style.height = `${nodeData.height}px`;
+        newNode.width = nodeData.width || 180;
+        newNode.height = nodeData.height || 120;
+        newNode.state = nodeData.state || 0;
+        newNode.manualInputs = nodeData.manualInputs || {};
+        
+        nodeIdMap.set(nodeData.id, newNodeId);
+      });
+      
+      // Recreate wires
+      (data.wires || []).forEach(wireData => {
+        const fromNodeId = nodeIdMap.get(wireData.from.node);
+        const toNodeId = nodeIdMap.get(wireData.to.node);
+        
+        if (fromNodeId && toNodeId) {
+          this.createWire(fromNodeId, wireData.from.pin, toNodeId, wireData.to.pin);
+        }
+      });
+      
+      this.evaluateCircuit();
+    }
+
+    clearWires() {
+      if (confirm('Clear all wires?')) {
+        Array.from(this.wires.keys()).forEach(wireId => this.deleteWire(wireId));
+      }
+    }
+
+    clearAll() {
+      Array.from(this.wires.keys()).forEach(wireId => this.deleteWire(wireId));
+      Array.from(this.nodes.keys()).forEach(nodeId => this.deleteNode(nodeId));
+    }
+
+    toggleSnap() {
+      this.snap = !this.snap;
+      this.snapToggle.classList.toggle('active', this.snap);
+    }
+
+    createDemoCircuit() {
+      // Create a simple AND gate demo with enhanced animations
+      setTimeout(() => {
+        const input1 = this.createNode('INPUT', 150, 200);
+        if (input1) this.nodes.get(input1).element.classList.add('bounce-in');
+      }, 100);
+      
+      setTimeout(() => {
+        const input2 = this.createNode('INPUT', 150, 300);
+        if (input2) this.nodes.get(input2).element.classList.add('bounce-in');
+      }, 200);
+      
+      setTimeout(() => {
+        const andGate = this.createNode('AND', 400, 250);
+        if (andGate) this.nodes.get(andGate).element.classList.add('bounce-in');
+      }, 300);
+      
+      setTimeout(() => {
+        const output = this.createNode('OUTPUT', 650, 250);
+        if (output) this.nodes.get(output).element.classList.add('bounce-in');
+        
+        // Create wires after all nodes are ready
+        setTimeout(() => {
+          const nodes = Array.from(this.nodes.values());
+          if (nodes.length >= 4) {
+            this.createWire(nodes[0].id, 0, nodes[2].id, 0);
+            this.createWire(nodes[1].id, 0, nodes[2].id, 1);
+            this.createWire(nodes[2].id, 0, nodes[3].id, 0);
+          }
+        }, 100);
+      }, 400);
+    }
+  }
+
+  // Initialize the application
+  const simulator = new LogicSimulator();
+
+})();
+</script>
+</body>
+</html>

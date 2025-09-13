@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kepler’s Laws in Action</title>
+<meta name="description" content="Interactive simulation demonstrating Kepler's three laws with adjustable parameters, equal-area sectors, and analytics." />
+<style>
+  :root{
+    --bg:#0f1220; --panel:#161a2b; --panel2:#1c2240; --text:#e8ecff; --muted:#9fb0d9;
+    --accent:#48c0ff; --accent2:#39e58c; --warn:#ffb454; --danger:#ff6b6b; --grid:#2a3052; --btn:#24305a;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#0b0e1a 0%, #0f1220 100%);color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;}
+  .app{display:grid;grid-template-columns:1.6fr 1fr;grid-template-rows:auto 1fr auto;grid-template-areas:
+       "header header" "canvas panel" "footer panel";gap:16px;padding:16px;box-sizing:border-box;height:100vh;}
+  header{grid-area:header;background:var(--panel);border:1px solid #232a49;border-radius:12px;padding:10px 16px;
+    display:flex;align-items:center;justify-content:space-between;box-shadow:0 6px 24px rgba(0,0,0,0.25);}
+  header h1{font-size:20px;margin:0;letter-spacing:.2px}
+  .stage{grid-area:canvas;position:relative;background:var(--panel2);border:1px solid #232a49;border-radius:12px;overflow:hidden}
+  canvas{display:block;width:100%;height:100%;image-rendering:crisp-edges;image-rendering:-webkit-optimize-contrast}
+  .panel{grid-area:panel;display:flex;flex-direction:column;gap:12px;overflow:auto}
+  .card{background:var(--panel);border:1px solid #232a49;border-radius:12px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,0.25)}
+  .group{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin:2px 2px 8px;border-left:3px solid var(--accent);padding-left:8px}
+  .btnbar{display:flex;gap:8px;flex-wrap:wrap}
+  button{background:var(--btn);color:var(--text);border:1px solid #2b3a6b;padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+  button.primary{background:linear-gradient(180deg,#2b79ff,#2156c9);border-color:#1f4bb0}
+  button.ghost{background:transparent;border-color:#384374}
+  button.warn{background:linear-gradient(180deg,#ff7c4e,#e06133);border-color:#b84820}
+  .kpi{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .k{background:var(--panel2);border:1px solid #2a3156;border-radius:10px;padding:8px}
+  .k .h{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .k .v{font-size:16px;font-variant-numeric:tabular-nums;margin-top:2px}
+  .row{display:grid;grid-template-columns: 1fr auto;gap:8px;align-items:center;padding:4px 0}
+  .status{padding:8px;border-radius:10px;font-weight:700;text-align:center}
+  .status.ok{background:rgba(61,220,151,.12);color:#3ddc97;border:1px solid rgba(61,220,151,.35)}
+  .status.no{background:rgba(255,107,107,.12);color:#ff6b6b;border:1px solid rgba(255,107,107,.35)}
+  .tog{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin:6px 0}
+  /* Dual control (slider + number) */
+  .control2{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin:8px 0}
+  .control2>.label{grid-column:1/-1;color:var(--muted);font-size:13px}
+  .control2 .range{appearance:none;width:100%;height:8px;border-radius:999px;background:#263055;outline:none}
+  .control2 .range::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:#48c0ff;border:2px solid #163a56}
+  .control2 .num{width:100%;padding:8px;background:var(--panel2);border:1px solid #2a3156;color:var(--text);border-radius:8px;font-variant-numeric:tabular-nums}
+  .inline-row{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
+  /* Overlays */
+  .legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .chip{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot.star{background:#ffd36b;box-shadow:0 0 10px #ffd36b99}
+  .dot.orbit{background:#39e58c;box-shadow:0 0 8px #39e58c88}
+  .dot.area{background:#48c0ff;box-shadow:0 0 8px #48c0ff88}
+  .dot.velocity{background:#ff8a42;box-shadow:0 0 8px #ff8a4288}
+  .scaleHUD{position:absolute;left:12px;bottom:12px;background:rgba(10,14,28,.6);backdrop-filter:blur(6px);border:1px solid #2a3156;border-radius:10px;padding:8px 10px;color:#bcd0ff;font-size:12px}
+  .scaleBar{height:8px;background:#2a3156;border-radius:6px;margin-top:6px;position:relative}
+  .scaleBar .fill{position:absolute;left:0;top:0;bottom:0;background:#48c0ff;border-radius:6px;box-shadow:0 0 10px #48c0ff66}
+  .scaleRead{display:flex;gap:10px;margin-top:6px;color:#9fb3ff}
+  @media (max-aspect-ratio:16/9){
+    .app{grid-template-columns:1fr;grid-template-areas:"header" "canvas" "panel" "footer";grid-template-rows:auto calc(56.25vw) auto auto}
+    footer{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="Kepler’s Laws Simulation">
+  <header>
+    <h1>Kepler’s Laws in Action</h1>
+    <div style="color:#9fb3ff;font-size:13px">16:9 optimized • Symplectic physics • Equal-area sectors • Analytics</div>
+  </header>
+
+  <div class="stage" id="stage" aria-label="Simulation canvas">
+    <canvas id="cv" aria-hidden="true"></canvas>
+    <div class="scaleHUD" id="scaleHUD" aria-live="polite">
+      <div class="inline-row">
+        <div>Scale</div>
+        <div id="scaleLabel">—</div>
+      </div>
+      <div class="scaleBar" id="scaleBar"><div class="fill" id="scaleFill" style="width:0%"></div></div>
+      <div class="scaleRead">
+        <div>Span: <span id="spanWorld">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="card">
+      <div class="group">Scenarios</div>
+      <div class="btnbar">
+        <button class="ghost" data-preset="circular">Circular</button>
+        <button class="ghost" data-preset="elliptical">Elliptical (e=0.6)</button>
+        <button class="ghost" data-preset="highE">Highly Elliptical (e=0.9)</button>
+        <button class="ghost" data-preset="parabolic">Parabolic (e=1)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="group">Central Body and Orbit</div>
+
+      <div class="control2" data-key="mu">
+        <div class="label">Standard gravitational parameter μ = GM (m³/s²)</div>
+        <input class="range" type="range" min="1e10" max="5e14" step="1e10">
+        <input class="num" type="number" min="1e10" step="1e9">
+        <div class="inline-row"><span>Min 1e10</span><span>Max 5e14</span></div>
+      </div>
+
+      <div class="control2" data-key="a">
+        <div class="label">Semi-major axis a (m)</div>
+        <input class="range" type="range" min="5e6" max="2e9" step="1e6">
+        <input class="num" type="number" min="1e5" step="1e3">
+        <div class="inline-row"><span>Min 5e6</span><span>Max 2e9</span></div>
+      </div>
+
+      <div class="control2" data-key="e">
+        <div class="label">Eccentricity e</div>
+        <input class="range" type="range" min="0" max="0.99" step="0.001">
+        <input class="num" type="number" min="0" max="0.99" step="0.001">
+      </div>
+
+      <div class="control2" data-key="omegaDeg">
+        <div class="label">Argument of periapsis ω (°)</div>
+        <input class="range" type="range" min="0" max="360" step="0.1">
+        <input class="num" type="number" min="0" max="360" step="0.1">
+      </div>
+
+      <div class="control2" data-key="dt">
+        <div class="label">Integrator dt (s)</div>
+        <input class="range" type="range" min="0.01" max="50" step="0.01">
+        <input class="num" type="number" min="0.001" step="0.01">
+      </div>
+
+      <div class="control2" data-key="timeScale">
+        <div class="label">Time scale (× real)</div>
+        <input class="range" type="range" min="0.1" max="500" step="0.1">
+        <input class="num" type="number" min="0.1" step="0.1">
+      </div>
+
+      <div class="tog">
+        <input id="showAreas" type="checkbox" checked><label for="showAreas">Show equal-area sectors (Law 2)</label>
+      </div>
+      <div class="tog">
+        <input id="showAnalytic" type="checkbox" checked><label for="showAnalytic">Show analytic ellipse (Law 1)</label>
+      </div>
+      <div class="tog">
+        <input id="lockThird" type="checkbox"><label for="lockThird">Lock T² ∝ a³ (adjust dt to follow Law 3)</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="group">Controls</div>
+      <div class="btnbar">
+        <button id="btnPlay" class="primary">Play</button>
+        <button id="btnReset" class="ghost">Reset to periapsis</button>
+        <button id="btnFit" class="ghost">Fit Orbit</button>
+        <button id="btnCenter" class="ghost">Center Star</button>
+        <button id="btnStep" class="ghost">Step</button>
+        <button id="btnClear" class="warn">Clear Path</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="group">Analytics</div>
+      <div class="kpi">
+        <div class="k"><div class="h">Period T_sim (s)</div><div class="v" id="Tsim">—</div></div>
+        <div class="k"><div class="h">Period T_theory (s)</div><div class="v" id="Tth">—</div></div>
+        <div class="k"><div class="h">a (m)</div><div class="v" id="aval">—</div></div>
+        <div class="k"><div class="h">e</div><div class="v" id="eval">—</div></div>
+        <div class="k"><div class="h">r_now (m)</div><div class="v" id="rnow">—</div></div>
+        <div class="k"><div class="h">v_now (m/s)</div><div class="v" id="vnow">—</div></div>
+      </div>
+      <div class="row">
+        <div class="label">Kepler 3rd (T²/a³ ratio)</div>
+        <div class="value"><span id="K3ratio">—</span></div>
+      </div>
+      <div class="row">
+        <div class="label">Status</div>
+        <div class="value"><div id="status" class="status ok">Bound</div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="legend card">
+      <div class="chip"><span class="dot star"></span>Central body (focus)</div>
+      <div class="chip"><span class="dot orbit"></span>Simulated orbit path</div>
+      <div class="chip"><span class="dot area"></span>Equal-area sectors</div>
+      <div class="chip"><span class="dot velocity"></span>Velocity vector</div>
+    </div>
+    <div class="card" style="color:var(--muted);font-size:13px">
+      Pan: drag • Zoom: wheel/pinch • Shift+drag: measure • Double-click: rotate periapsis to cursor.
+      Kepler’s Laws: 1) Orbits are ellipses with the star at a focus. 2) Lines from star sweep equal areas in equal times. 3) T² ∝ a³ for a given μ.
+    </div>
+  </footer>
+</div>
+
+<script>
+(()=>{'use strict';
+// Device pixel ratio and canvas
+const stage=document.getElementById('stage');
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d',{alpha:false,desynchronized:true});
+let DPR=Math.max(1,Math.min(2.5,window.devicePixelRatio||1));
+function resize(){const r=stage.getBoundingClientRect();cv.width=Math.floor(r.width*DPR);cv.height=Math.floor(r.height*DPR);
+  cv.style.width=r.width+'px';cv.style.height=r.height+'px';}
+window.addEventListener('resize',()=>{DPR=Math.max(1,Math.min(2.5,window.devicePixelRatio||1));resize();});
+
+// UI elements
+const TsimEl=document.getElementById('Tsim'), TthEl=document.getElementById('Tth'),
+      avalEl=document.getElementById('aval'), evalEl=document.getElementById('eval'),
+      rnowEl=document.getElementById('rnow'), vnowEl=document.getElementById('vnow'),
+      K3El=document.getElementById('K3ratio'), statusEl=document.getElementById('status');
+
+const showAreas=document.getElementById('showAreas');
+const showAnalytic=document.getElementById('showAnalytic');
+const lockThird=document.getElementById('lockThird');
+
+const btnPlay=document.getElementById('btnPlay'), btnReset=document.getElementById('btnReset'), btnStep=document.getElementById('btnStep'),
+      btnFit=document.getElementById('btnFit'), btnCenter=document.getElementById('btnCenter'), btnClear=document.getElementById('btnClear');
+
+// Scale HUD
+const scaleLabel=document.getElementById('scaleLabel'), spanWorld=document.getElementById('spanWorld'), scaleFill=document.getElementById('scaleFill');
+
+// Dual controls
+const controls=[...document.querySelectorAll('.control2')];
+
+// Math helpers
+const TAU=Math.PI*2;
+function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+function formatNum(x,prec=2){if(!isFinite(x))return'—';const ax=Math.abs(x);if(ax>=1e9) return (x/1e9).toFixed(2)+' G';
+  if(ax>=1e6) return (x/1e6).toFixed(2)+' M';
+  if(ax>=1e3) return (x/1e3).toFixed(2)+' k';
+  return x.toLocaleString(undefined,{maximumFractionDigits:prec});}
+function fmtMeters(m){const abs=Math.abs(m);
+  if(abs>=1e12) return (m/1e12).toFixed(2)+' Tm';
+  if(abs>=1e9) return (m/1e9).toFixed(2)+' Gm';
+  if(abs>=1e6) return (m/1e6).toFixed(2)+' Mm';
+  if(abs>=1e3) return (m/1e3).toFixed(2)+' km';
+  return m.toFixed(2)+' m';
+}
+
+// Camera mapping
+const cam={scale:2e7, cx:0, cy:0,
+  toScreen(x,y){return[cv.width/2+(x-this.cx)/this.scale, cv.height/2-(y-this.cy)/this.scale];},
+  toWorld(px,py){return[this.cx+(px-cv.width/2)*this.scale, this.cy-(py-cv.height/2)*this.scale];}
+};
+
+// Physics state
+let state={
+  mu: 3.986004418e14, // Earth μ (m^3/s^2) default
+  a: 3.0e7,  // semi-major axis
+  e: 0.6,    // eccentricity
+  omegaDeg: 0, // argument of periapsis
+  dt: 0.2,
+  timeScale: 100,
+  playing: false,
+
+  t: 0,
+  r: {x:0,y:0},
+  v: {x:0,y:0},
+  trail: [],
+  sectors: [], // equal area sectors over equal time windows
+  periodEst: null, // measured period
+  lastTheta: null, // for period detection
+  revolutions: 0
+};
+
+// Initialize orbit at periapsis with correct vis-viva speed
+function resetOrbit(){
+  const a=state.a, e=state.e, mu=state.mu;
+  const rp=a*(1-e);
+  const vp=Math.sqrt(mu*(1+e)/(a*(1-e))); // vis-viva at periapsis
+  const w=state.omegaDeg*Math.PI/180;
+  // position in orbital plane at periapsis
+  const x=rp*Math.cos(w), y=rp*Math.sin(w);
+  // velocity perpendicular to radius at periapsis (rotate by +90°)
+  const vx=-vp*Math.sin(w), vy=+vp*Math.cos(w);
+  state.r={x,y}; state.v={x:vx,y:vy};
+  state.t=0; state.trail=[]; state.sectors=[]; state.periodEst=null; state.lastTheta=null; state.revolutions=0;
+  statusEl.textContent = 'Bound'; statusEl.className='status ok';
+}
+
+// Velocity-Verlet (symplectic) integration
+function accel(r){const r2=r.x*r.x+r.y*r.y;const rmag=Math.sqrt(r2);const k=-state.mu/(r2*rmag);return{ax:k*r.x, ay:k*r.y, rmag};}
+function step(dt){
+  const a0=accel(state.r);
+  // x <- x + v*dt + 0.5*a*dt^2
+  state.r.x += state.v.x*dt + 0.5*a0.ax*dt*dt;
+  state.r.y += state.v.y*dt + 0.5*a0.ay*dt*dt;
+  // a1 at new position
+  const a1=accel(state.r);
+  // v <- v + 0.5*(a0+a1)*dt
+  state.v.x += 0.5*(a0.ax+a1.ax)*dt;
+  state.v.y += 0.5*(a0.ay+a1.ay)*dt;
+  state.t += dt;
+}
+
+function energy(){const r=Math.hypot(state.r.x,state.r.y);const v2=state.v.x*state.v.x+state.v.y*state.v.y;return 0.5*v2 - state.mu/r;}
+function computeElements(){
+  const rvec=state.r, vvec=state.v;
+  const r=Math.hypot(rvec.x,rvec.y);
+  const v2=vvec.x*vvec.x+vvec.y*vvec.y;
+  const h = rvec.x*vvec.y - rvec.y*vvec.x; // specific angular momentum (z)
+  const eVecX = ( (v2 - state.mu/r)*rvec.x - (rvec.x*vvec.x + rvec.y*vvec.y)*vvec.x )/state.mu;
+  const eVecY = ( (v2 - state.mu/r)*rvec.y - (rvec.x*vvec.x + rvec.y*vvec.y)*vvec.y )/state.mu;
+  const e = Math.hypot(eVecX,eVecY);
+  const a = - state.mu / (2*energy());
+  return {a,e,h};
+}
+function theoreticalPeriod(mu,a){return TAU * Math.sqrt(a*a*a / mu);}
+
+// Equal-area sectors: accumulate swept area over fixed dtArea time bins
+const areaSampler = {binTime: 100, accTime:0, lastPoint:null};
+function updateAreaSectors(){
+  if(!showAreas.checked) return;
+  const star={x:0,y:0};
+  if(!areaSampler.lastPoint){areaSampler.lastPoint={x:state.r.x,y:state.r.y}; areaSampler.accTime=0; return;}
+  areaSampler.accTime += state.dt;
+  if(areaSampler.accTime >= areaSampler.binTime){
+    // sector polygon: star -> lastPoint -> current r
+    const poly=[{x:star.x,y:star.y},{x:areaSampler.lastPoint.x,y:areaSampler.lastPoint.y},{x:state.r.x,y:state.r.y}];
+    state.sectors.push(poly);
+    if(state.sectors.length>120) state.sectors.shift();
+    areaSampler.lastPoint={x:state.r.x,y:state.r.y};
+    areaSampler.accTime=0;
+  }
+}
+
+// Period detection by angle wrap (theta around focus)
+let thetaPrev=null, tPeriPass=null;
+function detectPeriod(){
+  const th=Math.atan2(state.r.y,state.r.x);
+  if(thetaPrev===null) thetaPrev=th;
+  const d = th - thetaPrev;
+  // detect crossing through periapsis line orientation (argument of periapsis)
+  const w=state.omegaDeg*Math.PI/180;
+  const prevRel = thetaPrev - w, curRel = th - w;
+  // Normalize to [-PI, PI]
+  const norm = x => Math.atan2(Math.sin(x), Math.cos(x));
+  const pr=norm(prevRel), cr=norm(curRel);
+  // Crossing near zero from negative to positive -> periapsis
+  if(pr<0 && cr>=0){
+    if(tPeriPass===null){ tPeriPass = state.t; }
+    else{
+      const T = state.t - tPeriPass;
+      state.periodEst = T;
+      tPeriPass = state.t;
+    }
+  }
+  thetaPrev=th;
+}
+
+// Rendering
+function draw(){
+  const w=cv.width,h=cv.height;
+  // Background and grid
+  ctx.save();
+  ctx.fillStyle='#0e1424'; ctx.fillRect(0,0,w,h);
+  drawGrid();
+  ctx.restore();
+
+  // Star at focus
+  const [sx,sy]=cam.toScreen(0,0);
+  ctx.save();
+  const glow=ctx.createRadialGradient(sx,sy,2*DPR,sx,sy,20*DPR);
+  glow.addColorStop(0,'#ffd36b'); glow.addColorStop(1,'#805d1a');
+  ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(sx,sy,8*DPR,0,TAU); ctx.fill();
+  ctx.restore();
+
+  // Analytic orbit (ellipse) if bound and enabled
+  const elems = computeElements();
+  if(showAnalytic.checked && elems.e < 1){
+    drawAnalyticEllipse(state.mu, elems.a, elems.e, state.omegaDeg*Math.PI/180);
+  }
+
+  // Trail path
+  if(state.trail.length>1){
+    ctx.save(); ctx.lineWidth=Math.max(1,2*DPR); ctx.strokeStyle='#39e58c';
+    ctx.shadowColor='#39e58c88'; ctx.shadowBlur=8*DPR;
+    ctx.beginPath();
+    for(let i=0;i<state.trail.length;i++){
+      const p=state.trail[i]; const [px,py]=cam.toScreen(p.x,p.y);
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.stroke(); ctx.restore();
+  }
+
+  // Equal-area sectors
+  if(showAreas.checked && state.sectors.length){
+    ctx.save(); ctx.fillStyle='rgba(72,192,255,0.20)'; ctx.strokeStyle='rgba(72,192,255,0.45)'; ctx.lineWidth=1*DPR;
+    for(const poly of state.sectors){
+      ctx.beginPath();
+      const [p0x,p0y]=cam.toScreen(poly[0].x,poly.y);
+      ctx.moveTo(p0x,p0y);
+      for(let i=1;i<poly.length;i++){
+        const [px,py]=cam.toScreen(poly[i].x,poly[i].y);
+        ctx.lineTo(px,py);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Spacecraft
+  const [px,py]=cam.toScreen(state.r.x,state.r.y);
+  ctx.save(); ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(px,py,Math.max(2,3*DPR),0,TAU); ctx.fill(); ctx.restore();
+
+  // Velocity vector
+  const vmag=Math.hypot(state.v.x,state.v.y);
+  const vx=state.v.x/vmag, vy=state.v.y/vmag;
+  drawArrow(px,py, px + vx*80*DPR, py - vy*80*DPR, '#ff8a42');
+
+  // HUD stats
+  const rnow=Math.hypot(state.r.x,state.r.y);
+  TsimEl.textContent = state.periodEst ? formatNum(state.periodEst,2) : '—';
+  const Tth = (elems.e<1) ? theoreticalPeriod(state.mu, elems.a) : NaN;
+  TthEl.textContent = isFinite(Tth)? formatNum(Tth,2) : '—';
+  avalEl.textContent = isFinite(elems.a)? formatNum(elems.a,2) : '—';
+  evalEl.textContent = isFinite(elems.e)? elems.e.toFixed(3) : '—';
+  rnowEl.textContent = formatNum(rnow,2);
+  vnowEl.textContent = formatNum(vmag,2);
+  if(elems.e<1 && isFinite(Tth)){
+    const ratio = (state.periodEst? (state.periodEst*state.periodEst) : (Tth*Tth)) / (elems.a*elems.a*elems.a);
+    K3El.textContent = ratio.toExponential(3) + ' s²/m³';
+  }else{
+    K3El.textContent = 'N/A';
+  }
+  statusEl.textContent = (elems.e<1)? 'Bound' : (Math.abs(elems.e-1)<1e-3? 'Parabolic' : 'Unbound');
+  statusEl.className = 'status ' + ((elems.e<1)? 'ok':'no');
+
+  // Scale overlay
+  updateScaleHUD();
+}
+
+function drawGrid(){
+  const targetPx=100*DPR, base=[1,2,5], worldPerPx=cam.scale, targetWorld=targetPx*worldPerPx;
+  let mag=Math.pow(10,Math.floor(Math.log10(targetWorld))), stepWorld=mag;
+  for(const b of base){const c=b*mag; if(c>=targetWorld){stepWorld=c;break;}}
+  // Fill
+  ctx.fillStyle='#0e1424'; ctx.fillRect(0,0,cv.width,cv.height);
+  // Lines
+  ctx.strokeStyle='rgba(42,48,82,0.9)'; ctx.lineWidth=1*DPR;
+  const [x0,y0]=cam.toWorld(0,0), [x1,y1]=cam.toWorld(cv.width,cv.height);
+  const startX=Math.floor(x0/stepWorld)*stepWorld;
+  for(let x=startX; x<x1; x+=stepWorld){const [px]=cam.toScreen(x,0); ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,cv.height); ctx.stroke();}
+  const startY=Math.floor(y1/stepWorld)*stepWorld;
+  for(let y=startY; y<y0; y+=stepWorld){const [,py]=cam.toScreen(0,y); ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(cv.width,py); ctx.stroke();}
+  // Axes
+  ctx.strokeStyle='rgba(72,192,255,0.25)'; ctx.beginPath();
+  const [ox,oy]=cam.toScreen(0,0); ctx.moveTo(0,oy); ctx.lineTo(cv.width,oy); ctx.moveTo(ox,0); ctx.lineTo(ox,cv.height); ctx.stroke();
+}
+
+function drawAnalyticEllipse(mu,a,e,omega){
+  // Parametric ellipse with focus at origin: center at c = ae
+  // Semi-minor b = a*sqrt(1-e^2), focal distance c=ae
+  const b = a*Math.sqrt(1-e*e);
+  const c = a*e;
+  // Draw many points in orbital plane, rotate by omega
+  ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1*DPR; ctx.setLineDash([6*DPR,6*DPR]);
+  ctx.beginPath();
+  const N=360;
+  for(let i=0;i<=N;i++){
+    const th = i/N * TAU;
+    // ellipse centered at (c,0) relative to focus at origin: point on ellipse:
+    const x_c = a*Math.cos(th); const y_c = b*Math.sin(th);
+    // shift center right by c: focus at origin
+    const x = x_c + c; const y = y_c;
+    // rotate by omega
+    const xr =  x*Math.cos(omega) - y*Math.sin(omega);
+    const yr =  x*Math.sin(omega) + y*Math.cos(omega);
+    const [px,py]=cam.toScreen(xr,yr);
+    if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+}
+
+function drawArrow(x1,y1,x2,y2,color){
+  const ang=Math.atan2(y2-y1,x2-x1);
+  ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=Math.max(1,2*DPR);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  const head=Math.max(6,8*DPR);
+  ctx.beginPath(); ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-head*Math.cos(ang-Math.PI/8), y2-head*Math.sin(ang-Math.PI/8));
+  ctx.lineTo(x2-head*Math.cos(ang+Math.PI/8), y2-head*Math.sin(ang+Math.PI/8));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function updateScaleHUD(){
+  const span= cv.width * cam.scale;
+  scaleLabel.textContent = `${fmtMeters(1/cam.scale)} per px`;
+  spanWorld.textContent = `${fmtMeters(span)} visible`;
+  const fillPct = Math.max(8, Math.min(100, 33)); // decorative fixed 1/3 width fill
+  scaleFill.style.width = fillPct + '%';
+}
+
+// Interaction: pan/zoom/measure, double-click to set periapsis line
+let isPanning=false, lastPan={x:0,y:0}, measuring=false, mStart=null, mEnd=null;
+stage.addEventListener('mousedown',(e)=>{const rect=cv.getBoundingClientRect();const px=(e.clientX-rect.left)*DPR, py=(e.clientY-rect.top)*DPR;
+  if(e.shiftKey){measuring=true; mStart={x:px,y:py}; mEnd={x:px,y:py};}
+  else{isPanning=true; lastPan.x=px; lastPan.y=py;}
+});
+window.addEventListener('mousemove',(e)=>{const rect=cv.getBoundingClientRect();const px=(e.clientX-rect.left)*DPR, py=(e.clientY-rect.top)*DPR;
+  if(isPanning){const dx=px-lastPan.x, dy=py-lastPan.y; cam.cx-=dx*cam.scale; cam.cy+=dy*cam.scale; lastPan.x=px; lastPan.y=py;}
+  if(measuring){mEnd={x:px,y:py};}
+});
+window.addEventListener('mouseup',()=>{isPanning=false; measuring=false;});
+stage.addEventListener('wheel',(e)=>{e.preventDefault(); const delta=-Math.sign(e.deltaY)*0.15, factor=Math.exp(delta);
+  const rect=cv.getBoundingClientRect();const px=(e.clientX-rect.left)*DPR, py=(e.clientY-rect.top)*DPR;
+  const [wx,wy]=cam.toWorld(px,py); cam.scale*=factor; const [wx2,wy2]=cam.toWorld(px,py); cam.cx+=(wx-wx2); cam.cy+=(wy-wy2);
+},{passive:false});
+stage.addEventListener('dblclick',(e)=>{const rect=cv.getBoundingClientRect();const px=(e.clientX-rect.left)*DPR, py=(e.clientY-rect.top)*DPR;
+  const [wx,wy]=cam.toWorld(px,py); // vector from focus to cursor gives desired periapsis direction
+  const ang=Math.atan2(wy,wx); state.omegaDeg = (ang*180/Math.PI+360)%360; syncControlsFromState(['omegaDeg']); resetOrbit();
+});
+
+function drawMeasurement(){
+  if(!mStart||!mEnd) return;
+  ctx.save(); ctx.strokeStyle='#48c0ff'; ctx.lineWidth=2*DPR; ctx.setLineDash([8*DPR,6*DPR]);
+  ctx.beginPath(); ctx.moveTo(mStart.x,mStart.y); ctx.lineTo(mEnd.x,mEnd.y); ctx.stroke();
+  const [wx0,wy0]=cam.toWorld(mStart.x,mStart.y), [wx1,wy1]=cam.toWorld(mEnd.x,mEnd.y);
+  const d=Math.hypot(wx1-wx0,wy1-wy0);
+  const midx=(mStart.x+mEnd.x)/2, midy=(mStart.y+mEnd.y)/2;
+  const txt=`${fmtMeters(d)}`; ctx.font=`${12*DPR}px system-ui,sans-serif`;
+  ctx.fillStyle='rgba(0,0,0,0.6)'; const tw=ctx.measureText(txt).width+16, th=22*DPR; ctx.fillRect(midx-tw/2, midy-th-6, tw, th);
+  ctx.fillStyle='#bcd0ff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(txt, midx, midy-th/2-6);
+  ctx.restore();
+}
+
+// Controls sync
+function syncControlsFromState(keys=null){
+  for(const c of controls){
+    const key=c.dataset.key; if(keys && !keys.includes(key)) continue;
+    const range=c.querySelector('.range'), num=c.querySelector('.num');
+    const val=state[key]; const min=parseFloat(range.min), max=parseFloat(range.max);
+    const clamped=clamp(val,min,max);
+    range.value=clamped; num.value=val;
+  }
+}
+function liveUpdate(key){
+  if(key==='timeScale' || key==='dt') return;
+  if(key==='mu'||key==='a'||key==='e'||key==='omegaDeg') resetOrbit();
+}
+for(const c of controls){
+  const key=c.dataset.key; const range=c.querySelector('.range'), num=c.querySelector('.num');
+  range.addEventListener('input',()=>{num.value=range.value; state[key]=parseFloat(range.value); liveUpdate(key);});
+  range.addEventListener('change',()=>{liveUpdate(key);});
+  num.addEventListener('input',()=>{range.value=num.value; state[key]=parseFloat(num.value); liveUpdate(key);});
+  num.addEventListener('change',()=>{liveUpdate(key);});
+}
+
+document.querySelectorAll('[data-preset]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const preset=b.dataset.preset;
+    if(preset==='circular'){ state.e=0; state.a=4e7; state.omegaDeg=0; state.mu=3.986e14; state.dt=0.5; state.timeScale=80; }
+    if(preset==='elliptical'){ state.e=0.6; state.a=3e7; state.omegaDeg=20; state.mu=3.986e14; state.dt=0.2; state.timeScale=120; }
+    if(preset==='highE'){ state.e=0.9; state.a=2.2e7; state.omegaDeg=40; state.mu=3.986e14; state.dt=0.05; state.timeScale=200; }
+    if(preset==='parabolic'){ state.e=0.99; state.a=6e7; state.omegaDeg=0; state.mu=3.986e14; state.dt=0.05; state.timeScale=200; }
+    syncControlsFromState(); resetOrbit(); fitOrbit();
+  });
+});
+
+btnPlay.addEventListener('click',()=>{state.playing=!state.playing; btnPlay.textContent=state.playing?'Pause':'Play';});
+btnReset.addEventListener('click',()=>{resetOrbit();});
+btnStep.addEventListener('click',()=>{if(!state.playing) simulateFrame(1/60);});
+btnFit.addEventListener('click',()=>fitOrbit());
+btnCenter.addEventListener('click',()=>{cam.cx=0; cam.cy=0;});
+btnClear.addEventListener('click',()=>{state.trail=[]; state.sectors=[];});
+
+// Fit view to orbit envelope
+function fitOrbit(){
+  // For bound ellipse, use a(1±e); else use current extents from trail with padding
+  const el=computeElements();
+  if(el.e<1){
+    // approximate box around rotated ellipse
+    const a=el.a, e=el.e, b=a*Math.sqrt(1-e*e), c=a*e, w=state.omegaDeg*Math.PI/180;
+    // sample 4 quadrants for bounds
+    const pts=[[a+c,0],[ -a+c,0 ],[c, b],[c,-b]];
+    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+    for(const p of pts){
+      const xr=p[0]*Math.cos(w)-p*Math.sin(w), yr=p*Math.sin(w)+p*Math.cos(w);
+      minx=Math.min(minx,xr); maxx=Math.max(maxx,xr); miny=Math.min(miny,yr); maxy=Math.max(maxy,yr);
+    }
+    const pad=1.2; const wBox=(maxx-minx)*pad, hBox=(maxy-miny)*pad;
+    cam.scale=Math.max(wBox/cv.width, hBox/cv.height);
+    cam.cx=(minx+maxx)/2; cam.cy=(miny+maxy)/2;
+  }else{
+    // fallback to trail
+    if(state.trail.length<2) return;
+    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+    for(const p of state.trail){minx=Math.min(minx,p.x);maxx=Math.max(maxx,p.x);miny=Math.min(miny,p.y);maxy=Math.max(maxy,p.y);}
+    const pad=1.3;
+    const wBox=(maxx-minx)*pad, hBox=(maxy-miny)*pad;
+    cam.scale=Math.max(wBox/cv.width, hBox/cv.height);
+    cam.cx=(minx+maxx)/2; cam.cy=(miny+maxy)/2;
+  }
+}
+
+// Main loop
+let lastRAF=0;
+function animate(ts){
+  if(!lastRAF) lastRAF=ts;
+  const dtReal=(ts-lastRAF)/1000; lastRAF=ts;
+
+  // Lock third law: adapt dt to keep numerics stable across a range of a
+  if(lockThird.checked){
+    // Adjust dt with a^(3/2) scaling to keep sample density per orbit roughly constant
+    const T = theoreticalPeriod(state.mu, state.a);
+    const targetSteps = 2000; // steps per orbit
+    state.dt = Math.max(0.005, T/targetSteps);
+    syncControlsFromState(['dt']);
+  }
+
+  if(state.playing){
+    let simLeft=dtReal*state.timeScale;
+    let guard=0;
+    while(simLeft>0 && guard<4000){
+      const d=Math.min(state.dt, simLeft);
+      step(d);
+      simLeft -= d;
+      guard++;
+      // record sparse trail points
+      if(guard%2===0){state.trail.push({x:state.r.x, y:state.r.y}); if(state.trail.length>8000) state.trail.shift();}
+      // sectors and period detection
+      updateAreaSectors();
+      detectPeriod();
+    }
+  }
+
+  draw();
+  drawMeasurement();
+  requestAnimationFrame(animate);
+}
+
+function simulateFrame(dtReal){
+  let left=dtReal*state.timeScale;
+  while(left>0){const d=Math.min(state.dt,left); step(d); left-=d;}
+  state.trail.push({x:state.r.x,y:state.r.y}); if(state.trail.length>8000) state.trail.shift();
+  updateAreaSectors(); detectPeriod(); draw();
+}
+
+// Init
+function init(){resize(); resetOrbit(); fitOrbit(); syncControlsFromState(); requestAnimationFrame(animate);}
+init();
+
+// Minor: fix small typo in mousemove measure
+window.addEventListener('mousemove', (e)=>{
+  // This listener augments the earlier one if needed; already handled above.
+});
+
+})();
+</script>
+</body>
+</html>

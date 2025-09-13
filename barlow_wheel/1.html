@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barlow's Wheel Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to bottom, #1a1a2e, #16213e);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .header {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+        .subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        .content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        #canvas-container {
+            flex: 1;
+            position: relative;
+        }
+        .controls {
+            width: 300px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .control-group {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: #4cc9f0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 5px;
+        }
+        .slider-container {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 5px;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #4cc9f0;
+            cursor: pointer;
+        }
+        .button {
+            background: #4361ee;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .button:hover {
+            background: #3a56d4;
+        }
+        .button:active {
+            transform: translateY(1px);
+        }
+        .info-panel {
+            margin-top: 10px;
+            font-size: 14px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+        .value-display {
+            color: #4cc9f0;
+            font-weight: bold;
+        }
+        .instructions {
+            margin-top: auto;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .instructions h2 {
+            margin-bottom: 10px;
+        }
+        .instructions ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Barlow's Wheel Simulation</h1>
+            <div class="subtitle">An early demonstration of electromagnetic rotation</div>
+        </div>
+        <div class="content">
+            <div id="canvas-container"></div>
+            <div class="controls">
+                <div class="control-group">
+                    <h2>Simulation Controls</h2>
+                    <div class="slider-container">
+                        <label for="voltage">Voltage Level</label>
+                        <input type="range" id="voltage" min="0" max="100" value="0">
+                        <div class="info-panel">Current: <span id="current-value" class="value-display">0 A</span></div>
+                    </div>
+                    <div class="slider-container">
+                        <label for="magnetic-field">Magnetic Field Strength</label>
+                        <input type="range" id="magnetic-field" min="50" max="150" value="100">
+                    </div>
+                    <button id="reverse-btn" class="button">Reverse Polarity</button>
+                </div>
+                
+                <div class="control-group">
+                    <h2>View Controls</h2>
+                    <button id="reset-view" class="button">Reset View</button>
+                    <button id="toggle-rotation" class="button">Pause/Resume Wheel</button>
+                </div>
+                
+                <div class="instructions">
+                    <h2>About Barlow's Wheel</h2>
+                    <p>Barlow's Wheel (1822) was an early demonstration of electromagnetic rotation. When electric current passes through the wheel while it's in a magnetic field, it experiences a force causing rotation.</p>
+                    <ul>
+                        <li>Adjust the voltage to control current flow</li>
+                        <li>Change magnetic field strength to affect rotation speed</li>
+                        <li>Reverse polarity to change rotation direction</li>
+                        <li>Drag to rotate the view, scroll to zoom</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Main variables
+        let scene, camera, renderer, controls;
+        let wheel, mercuryPool, magnets = [];
+        let wheelRotationSpeed = 0;
+        let isRotating = true;
+        let voltageLevel = 0;
+        let magneticFieldStrength = 1;
+        let currentDirection = 1;
+
+        // Initialize the simulation
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight - 300), 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(document.getElementById('canvas-container').offsetWidth, window.innerHeight - 100);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Add orbit controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Create the Barlow's wheel setup
+            createBarlowsWheel();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Setup event listeners for controls
+            document.getElementById('voltage').addEventListener('input', updateVoltage);
+            document.getElementById('magnetic-field').addEventListener('input', updateMagneticField);
+            document.getElementById('reverse-btn').addEventListener('click', reversePolarity);
+            document.getElementById('reset-view').addEventListener('click', resetView);
+            document.getElementById('toggle-rotation').addEventListener('click', toggleRotation);
+            
+            // Start animation loop
+            animate();
+        }
+
+        // Create Barlow's wheel components
+        function createBarlowsWheel() {
+            // Create the base
+            const baseGeometry = new THREE.BoxGeometry(10, 0.5, 5);
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = -2;
+            base.receiveShadow = true;
+            scene.add(base);
+            
+            // Create supports
+            const supportGeometry = new THREE.CylinderGeometry(0.3, 0.3, 4);
+            const supportMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+            
+            const leftSupport = new THREE.Mesh(supportGeometry, supportMaterial);
+            leftSupport.position.set(-2, 0, 0);
+            leftSupport.castShadow = true;
+            scene.add(leftSupport);
+            
+            const rightSupport = new THREE.Mesh(supportGeometry, supportMaterial);
+            rightSupport.position.set(2, 0, 0);
+            rightSupport.castShadow = true;
+            scene.add(rightSupport);
+            
+            // Create the wheel
+            const wheelGeometry = new THREE.CylinderGeometry(3, 3, 0.2, 24);
+            const wheelMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x1e90ff,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            
+            wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            wheel.position.y = 1;
+            wheel.rotation.x = Math.PI / 2;
+            wheel.castShadow = true;
+            scene.add(wheel);
+            
+            // Add spokes to the wheel
+            const spokeGeometry = new THREE.BoxGeometry(0.1, 2.8, 0.1);
+            const spokeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            
+            for (let i = 0; i < 8; i++) {
+                const spoke = new THREE.Mesh(spokeGeometry, spokeMaterial);
+                spoke.rotation.x = Math.PI / 2;
+                spoke.rotation.z = (Math.PI / 4) * i;
+                wheel.add(spoke);
+            }
+            
+            // Create axle (fixed the variable name here)
+            const axleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4.5);
+            const axleMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            const axle = new THREE.Mesh(axleGeometry, axleMaterial);
+            axle.rotation.x = Math.PI / 2;
+            scene.add(axle);
+            
+            // Create mercury pool
+            const mercuryGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.2, 32);
+            const mercuryMaterial = new THREE.MeshStandardMaterial({
+                color: 0x708090,
+                metalness: 1.0,
+                roughness: 0.1,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            mercuryPool = new THREE.Mesh(mercuryGeometry, mercuryMaterial);
+            mercuryPool.position.set(0, -1.8, 0);
+            mercuryPool.rotation.x = Math.PI / 2;
+            scene.add(mercuryPool);
+            
+            // Create magnets
+            const magnetGeometry = new THREE.BoxGeometry(1, 0.5, 2);
+            const northMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Red for north
+            const southMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff }); // Blue for south
+            
+            const northMagnet = new THREE.Mesh(magnetGeometry, northMaterial);
+            northMagnet.position.set(0, -1.5, -3);
+            northMagnet.castShadow = true;
+            scene.add(northMagnet);
+            
+            const southMagnet = new THREE.Mesh(magnetGeometry, southMaterial);
+            southMagnet.position.set(0, -1.5, 3);
+            southMagnet.castShadow = true;
+            scene.add(southMagnet);
+            
+            magnets.push(northMagnet, southMagnet);
+            
+            // Add labels
+            createLabel("N", new THREE.Vector3(0.5, -1.2, -3));
+            createLabel("S", new THREE.Vector3(0.5, -1.2, 3));
+            createLabel("Mercury Pool", new THREE.Vector3(1.5, -1.6, 0));
+            
+            // Add coordinate axes for reference
+            const axesHelper = new THREE.AxesHelper(5);
+            scene.add(axesHelper);
+        }
+
+        // Create text labels
+        function createLabel(text, position) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 128;
+            canvas.height = 64;
+            
+            context.fillStyle = '#ffffff';
+            context.font = '24px Arial';
+            context.fillText(text, 10, 30);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(material);
+            sprite.position.copy(position);
+            sprite.scale.set(2, 1, 1);
+            scene.add(sprite);
+        }
+
+        // Update voltage based on slider
+        function updateVoltage(event) {
+            voltageLevel = parseFloat(event.target.value);
+            document.getElementById('current-value').textContent = (voltageLevel / 10).toFixed(1) + " A";
+            
+            // Update rotation speed based on voltage and magnetic field
+            wheelRotationSpeed = (voltageLevel / 100) * (magneticFieldStrength / 100) * currentDirection;
+        }
+
+        // Update magnetic field strength
+        function updateMagneticField(event) {
+            magneticFieldStrength = parseFloat(event.target.value);
+            
+            // Update rotation speed based on voltage and magnetic field
+            wheelRotationSpeed = (voltageLevel / 100) * (magneticFieldStrength / 100) * currentDirection;
+        }
+
+        // Reverse polarity
+        function reversePolarity() {
+            currentDirection *= -1;
+            wheelRotationSpeed *= -1;
+            
+            // Swap magnet colors to visually represent polarity change
+            magnets[0].material.color.set(0x0000ff); // Change north to blue
+            magnets[1].material.color.set(0xff0000); // Change south to red
+            
+            // Update labels
+            scene.children.forEach(child => {
+                if (child instanceof THREE.Sprite) {
+                    if (child.position.z === -3) child.material.map?.dispose();
+                    if (child.position.z === 3) child.material.map?.dispose();
+                }
+            });
+            
+            createLabel("S", new THREE.Vector3(0.5, -1.2, -3));
+            createLabel("N", new THREE.Vector3(0.5, -1.2, 3));
+        }
+
+        // Reset camera view
+        function resetView() {
+            camera.position.set(0, 5, 10);
+            controls.reset();
+        }
+
+        // Toggle wheel rotation
+        function toggleRotation() {
+            isRotating = !isRotating;
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = document.getElementById('canvas-container').offsetWidth / (window.innerHeight - 100);
+            camera.updateProjectionMatrix();
+            renderer.setSize(document.getElementById('canvas-container').offsetWidth, window.innerHeight - 100);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isRotating && wheel) {
+                wheel.rotation.z += wheelRotationSpeed;
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Initialize the simulation when the page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industry-Grade Projectile Motion Simulator v2.0</title>
+    <style>
+        :root {
+            --primary-bg: linear-gradient(135deg, #0c1426 0%, #1e3a8a 50%, #1e40af 100%);
+            --panel-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.2);
+            --glass-bg: rgba(30, 41, 59, 0.8);
+            --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.4);
+            --shadow-xl: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--primary-bg);
+            height: 100vh;
+            overflow: hidden;
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 360px 1fr 380px;
+            grid-template-rows: 85px 1fr;
+            height: 100vh;
+            gap: 18px;
+            padding: 18px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header h1 {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan), var(--accent-emerald));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .version-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-blue);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: var(--shadow-xl);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .panel::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .control-section {
+            margin-bottom: 32px;
+            padding: 24px;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.7));
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan), var(--accent-emerald));
+            border-radius: 20px 20px 0 0;
+        }
+
+        .section-title {
+            color: var(--text-primary);
+            margin-bottom: 24px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .parameter-group {
+            margin-bottom: 20px;
+        }
+
+        .parameter-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .parameter-value {
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.8));
+            outline: none;
+            -webkit-appearance: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid var(--border-color);
+        }
+
+        .slider:hover {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6);
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 120px;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .input-field, .select-field {
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.7);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .input-field:focus, .select-field:focus {
+            border-color: var(--accent-blue);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+            margin: 8px;
+            letter-spacing: 0.02em;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 12px 28px rgba(239, 68, 68, 0.4);
+        }
+
+        .simulation-viewport {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, 
+                #87ceeb 0%,
+                #b0e0e6 15%,
+                #add8e6 35%,
+                #90ee90 55%,
+                #228b22 75%,
+                #8b4513 92%,
+                #654321 100%
+            );
+            border-radius: 24px;
+        }
+
+        #simulation-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+            border-radius: 24px;
+        }
+
+        .cannon-assembly {
+            position: absolute;
+            z-index: 10;
+        }
+
+        .cannon-base {
+            width: 70px;
+            height: 70px;
+            background: radial-gradient(circle at 35% 35%, #6b7280, #374151, #1f2937);
+            border-radius: 50%;
+            border: 4px solid #111827;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .cannon-base::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #4b5563, #1f2937);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid #111827;
+        }
+
+        .cannon-barrel {
+            position: absolute;
+            width: 100px;
+            height: 22px;
+            background: linear-gradient(90deg, #4b5563 0%, #374151 50%, #1f2937 100%);
+            border: 3px solid #111827;
+            border-radius: 0 12px 12px 0;
+            transform-origin: 11px 50%;
+            top: 50%;
+            left: 50%;
+            margin-top: -11px;
+            margin-left: -11px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .cannon-barrel::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            width: 12px;
+            height: 12px;
+            background: #1f2937;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            border: 2px solid #111827;
+        }
+
+        .projectile {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: radial-gradient(circle at 30% 30%, #fbbf24, #f59e0b, #d97706);
+            border-radius: 50%;
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.8);
+            display: none;
+            z-index: 25;
+            transition: all 0.05s linear;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .data-card {
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.7));
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .data-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .data-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-emerald));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .graph-panel {
+            margin-bottom: 28px;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.8));
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .graph-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .graph-title {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .graph-canvas {
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.6), rgba(30, 41, 59, 0.4));
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 16px 20px;
+            border-radius: 16px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            z-index: 30;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .warning-banner {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1));
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--accent-amber);
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            display: none;
+        }
+
+        @media (max-width: 1600px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto;
+            }
+            
+            .panel {
+                max-height: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <h1>🚀 Industry-Grade Projectile Motion Simulator</h1>
+            <div class="version-info">v2.0 Enterprise</div>
+        </header>
+
+        <aside class="panel">
+            <div class="control-section">
+                <h2 class="section-title">🌍 Environmental Parameters</h2>
+                
+                <div class="input-row">
+                    <label class="parameter-label">Environment Preset:</label>
+                    <select id="environment-select" class="select-field">
+                        <option value="earth">🌍 Earth (Sea Level)</option>
+                        <option value="moon">🌙 Lunar Surface</option>
+                        <option value="mars">🔴 Martian Surface</option>
+                        <option value="jupiter">🪐 Jovian Atmosphere</option>
+                        <option value="water">💧 Aquatic Medium</option>
+                        <option value="vacuum">🌌 Deep Space</option>
+                        <option value="custom">⚙️ Custom Configuration</option>
+                    </select>
+                </div>
+
+                <div class="parameter-group">
+                    <div class="parameter-label">
+                        <span>Gravitational Acceleration</span>
+                        <span class="parameter-value"><span id="gravity-display">9.810</span> m/s²</span>
+                    </div>
+                    <input type="range" id="gravity-slider" class="slider" min="0.1" max="35" value="9.81" step="0.001">
+                </div>
+
+                <div class="parameter-group">
+                    <div class="parameter-label">
+                        <span>Medium Density</span>
+                        <span class="parameter-value"><span id="density-display">1.225</span> kg/m³</span>
+                    </div>
+                    <input type="range" id="density-slider" class="slider" min="0" max="1500" value="1.225" step="0.001">
+                </div>
+
+                <div class="parameter-group">
+                    <div class="parameter-label">
+                        <span>Drag Coefficient</span>
+                        <span class="parameter-value"><span id="drag-coeff-display">0.470</span></span>
+                    </div>
+                    <input type="range" id="drag-coeff-slider" class="slider" min="0" max="3" value="0.47" step="0.001">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h2 class="section-title">🚀 Launch Configuration</h2>
+                
+                <div class="parameter-group">
+                    <div class="parameter-label">
+                        <span>Initial Velocity</span>
+                        <span class="parameter-value"><span id="velocity-display">50.0</span> m/s</span>
+                    </div>
+                    <input type="range" id="velocity-slider" class="slider" min="0.1" max="300" value="50" step="0.1">
+                </div>
+
+                <div class="parameter-group">
+                    <div class="parameter-label">
+                        <span>Launch Angle</span>
+                        <span class="parameter-value"><span id="angle-display">45.0</span>°</span>
+                    </div>
+                    <input type="range" id="angle-slider" class="slider" min="0" max="90" value="45" step="0.1">
+                </div>
+
+                <div class="parameter-group">
+                    <div class="parameter-label">
+                        <span>Initial Height</span>
+                        <span class="parameter-value"><span id="height-display">0.0</span> m</span>
+                    </div>
+                    <input type="range" id="height-slider" class="slider" min="0" max="500" value="0" step="0.1">
+                </div>
+
+                <div class="parameter-group">
+                    <div class="parameter-label">
+                        <span>Projectile Mass</span>
+                        <span class="parameter-value"><span id="mass-display">1.000</span> kg</span>
+                    </div>
+                    <input type="range" id="mass-slider" class="slider" min="0.001" max="50" value="1" step="0.001">
+                </div>
+
+                <div class="parameter-group">
+                    <div class="parameter-label">
+                        <span>Cross-Sectional Area</span>
+                        <span class="parameter-value"><span id="area-display">0.0100</span> m²</span>
+                    </div>
+                    <input type="range" id="area-slider" class="slider" min="0.0001" max="1" value="0.01" step="0.0001">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h2 class="section-title">🎮 Mission Control</h2>
+                <div class="warning-banner" id="warning-banner"></div>
+                <button class="btn" id="launch-btn">🚀 Execute Launch Sequence</button>
+                <button class="btn btn-danger" id="reset-btn">🔄 Abort & Reset</button>
+            </div>
+        </aside>
+
+        <main class="panel simulation-viewport">
+            <canvas id="simulation-canvas"></canvas>
+            <div class="cannon-assembly" id="cannon-assembly">
+                <div class="cannon-base"></div>
+                <div class="cannon-barrel" id="cannon-barrel"></div>
+            </div>
+            <div class="projectile" id="projectile"></div>
+            <div class="status-indicator" id="status-indicator">
+                STATUS: READY<br>
+                FPS: <span id="fps-display">60</span><br>
+                PHYSICS: <span id="physics-rate">120</span> Hz<br>
+                PRECISION: HIGH
+            </div>
+        </main>
+
+        <aside class="panel">
+            <div class="data-grid">
+                <div class="data-card">
+                    <div class="data-label">Time</div>
+                    <div class="data-value" id="time-value">0.000</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">Velocity</div>
+                    <div class="data-value" id="velocity-value">0.0</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">Position X</div>
+                    <div class="data-value" id="x-value">0.0</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">Position Y</div>
+                    <div class="data-value" id="y-value">0.0</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">Max Height</div>
+                    <div class="data-value" id="max-height-value">0.0</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">Range</div>
+                    <div class="data-value" id="range-value">0.0</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">Kinetic Energy</div>
+                    <div class="data-value" id="energy-value">0.0</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-label">Drag Force</div>
+                    <div class="data-value" id="drag-value">0.0</div>
+                </div>
+            </div>
+
+            <div class="graph-panel">
+                <div class="graph-header">
+                    <div class="graph-title">📈 Trajectory Analysis</div>
+                </div>
+                <canvas id="trajectory-graph" class="graph-canvas" width="340" height="220"></canvas>
+            </div>
+
+            <div class="graph-panel">
+                <div class="graph-header">
+                    <div class="graph-title">📊 Vertical Motion Profile</div>
+                </div>
+                <canvas id="height-graph" class="graph-canvas" width="340" height="220"></canvas>
+            </div>
+
+            <div class="graph-panel">
+                <div class="graph-header">
+                    <div class="graph-title">📊 Horizontal Motion Profile</div>
+                </div>
+                <canvas id="range-graph" class="graph-canvas" width="340" height="220"></canvas>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        'use strict';
+
+        class IndustryGradeProjectileSimulator {
+            // Physics constants and configuration
+            static PHYSICS_CONFIG = {
+                INTEGRATION_METHOD: 'RK4', // Runge-Kutta 4th order
+                PHYSICS_TIMESTEP: 1/240,   // 240 Hz physics for precision
+                MAX_SIMULATION_TIME: 3600, // 1 hour max simulation
+                COLLISION_THRESHOLD: 1e-6, // Precision for ground detection
+                INTEGRATION_SUBSTEPS: 1,   // Adaptive substeps if needed
+                AIR_RESISTANCE_MODEL: 'quadratic' // Quadratic drag model
+            };
+
+            static ENVIRONMENT_PRESETS = Object.freeze({
+                earth: { gravity: 9.81, density: 1.225, name: 'Earth (Sea Level)', temperature: 288.15 },
+                moon: { gravity: 1.62, density: 0, name: 'Lunar Surface', temperature: 250 },
+                mars: { gravity: 3.71, density: 0.020, name: 'Martian Surface', temperature: 210 },
+                jupiter: { gravity: 24.79, density: 0.16, name: 'Jovian Atmosphere', temperature: 165 },
+                water: { gravity: 9.81, density: 997, name: 'Aquatic Medium', temperature: 293.15 },
+                vacuum: { gravity: 9.81, density: 0, name: 'Deep Space', temperature: 2.7 },
+                custom: { name: 'Custom Configuration' }
+            });
+
+            constructor() {
+                this.initializeState();
+                this.initializeDOMElements();
+                this.initializePhysicsEngine();
+                this.initializeEventHandlers();
+                this.initializeGraphicsSystem();
+                this.validateConfiguration();
+                
+                // Start the main loop
+                this.resize();
+                this.reset();
+                this.startMainLoop();
+                
+                console.log('Industry-Grade Projectile Simulator v2.0 initialized');
+            }
+
+            initializeState() {
+                this.state = {
+                    // Simulation state
+                    isActive: false,
+                    isPaused: false,
+                    animationFrameId: null,
+                    
+                    // Timing
+                    lastFrameTime: 0,
+                    frameCount: 0,
+                    fpsCounter: 60,
+                    lastFpsUpdate: 0,
+                    
+                    // Physics accumulator for fixed timestep
+                    physicsAccumulator: 0,
+                    physicsStepCount: 0,
+                    
+                    // Trajectory data
+                    trajectoryPoints: [],
+                    maxHeight: 0,
+                    finalRange: 0,
+                    flightTime: 0,
+                    
+                    // Visualization
+                    scale: 2.0, // pixels per meter
+                    cannonPosition: { x: 100, y: 100 },
+                    
+                    // Performance monitoring
+                    performanceMetrics: {
+                        avgFrameTime: 0,
+                        maxFrameTime: 0,
+                        physicsTime: 0,
+                        renderTime: 0
+                    }
+                };
+
+                // Current projectile state (physics state vector)
+                this.projectile = {
+                    position: { x: 0, y: 0 },
+                    velocity: { x: 0, y: 0 },
+                    acceleration: { x: 0, y: 0 },
+                    time: 0,
+                    mass: 1.0,
+                    energy: { kinetic: 0, potential: 0, total: 0 }
+                };
+
+                // Launch parameters
+                this.launchParams = {
+                    velocity: 50.0,
+                    angle: 45.0,
+                    height: 0.0,
+                    mass: 1.0,
+                    area: 0.01,
+                    dragCoefficient: 0.47
+                };
+
+                // Environmental parameters
+                this.environment = {
+                    gravity: 9.81,
+                    density: 1.225,
+                    temperature: 288.15,
+                    pressure: 101325,
+                    viscosity: 1.81e-5
+                };
+            }
+
+            initializeDOMElements() {
+                // Canvas and rendering
+                this.canvas = document.getElementById('simulation-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                // UI elements
+                this.elements = {
+                    // Cannon elements
+                    cannonAssembly: document.getElementById('cannon-assembly'),
+                    cannonBarrel: document.getElementById('cannon-barrel'),
+                    projectileElement: document.getElementById('projectile'),
+                    
+                    // Control elements
+                    launchBtn: document.getElementById('launch-btn'),
+                    resetBtn: document.getElementById('reset-btn'),
+                    environmentSelect: document.getElementById('environment-select'),
+                    warningBanner: document.getElementById('warning-banner'),
+                    statusIndicator: document.getElementById('status-indicator'),
+                    
+                    // Parameter sliders
+                    sliders: {
+                        gravity: document.getElementById('gravity-slider'),
+                        density: document.getElementById('density-slider'),
+                        dragCoeff: document.getElementById('drag-coeff-slider'),
+                        velocity: document.getElementById('velocity-slider'),
+                        angle: document.getElementById('angle-slider'),
+                        height: document.getElementById('height-slider'),
+                        mass: document.getElementById('mass-slider'),
+                        area: document.getElementById('area-slider')
+                    },
+                    
+                    // Display elements
+                    displays: {
+                        gravity: document.getElementById('gravity-display'),
+                        density: document.getElementById('density-display'),
+                        dragCoeff: document.getElementById('drag-coeff-display'),
+                        velocity: document.getElementById('velocity-display'),
+                        angle: document.getElementById('angle-display'),
+                        height: document.getElementById('height-display'),
+                        mass: document.getElementById('mass-display'),
+                        area: document.getElementById('area-display'),
+                        
+                        // Live data displays
+                        time: document.getElementById('time-value'),
+                        velocityMag: document.getElementById('velocity-value'),
+                        posX: document.getElementById('x-value'),
+                        posY: document.getElementById('y-value'),
+                        maxHeight: document.getElementById('max-height-value'),
+                        range: document.getElementById('range-value'),
+                        energy: document.getElementById('energy-value'),
+                        drag: document.getElementById('drag-value'),
+                        
+                        // Performance displays
+                        fps: document.getElementById('fps-display'),
+                        physicsRate: document.getElementById('physics-rate')
+                    },
+                    
+                    // Graph canvases
+                    graphs: {
+                        trajectory: { canvas: document.getElementById('trajectory-graph'), data: [] },
+                        height: { canvas: document.getElementById('height-graph'), data: [] },
+                        range: { canvas: document.getElementById('range-graph'), data: [] }
+                    }
+                };
+
+                // Initialize graph contexts
+                Object.keys(this.elements.graphs).forEach(key => {
+                    this.elements.graphs[key].ctx = this.elements.graphs[key].canvas.getContext('2d');
+                });
+            }
+
+            initializePhysicsEngine() {
+                this.physics = {
+                    // Integration methods
+                    integrateRK4: (state, derivatives, dt) => {
+                        const k1 = derivatives(state);
+                        const k2 = derivatives(this.addStateDerivative(state, k1, dt * 0.5));
+                        const k3 = derivatives(this.addStateDerivative(state, k2, dt * 0.5));
+                        const k4 = derivatives(this.addStateDerivative(state, k3, dt));
+
+                        return {
+                            position: {
+                                x: state.position.x + (dt / 6) * (k1.velocity.x + 2 * k2.velocity.x + 2 * k3.velocity.x + k4.velocity.x),
+                                y: state.position.y + (dt / 6) * (k1.velocity.y + 2 * k2.velocity.y + 2 * k3.velocity.y + k4.velocity.y)
+                            },
+                            velocity: {
+                                x: state.velocity.x + (dt / 6) * (k1.acceleration.x + 2 * k2.acceleration.x + 2 * k3.acceleration.x + k4.acceleration.x),
+                                y: state.velocity.y + (dt / 6) * (k1.acceleration.y + 2 * k2.acceleration.y + 2 * k3.acceleration.y + k4.acceleration.y)
+                            },
+                            time: state.time + dt
+                        };
+                    },
+
+                    // Force calculations
+                    calculateForces: (state) => {
+                        const forces = { x: 0, y: 0 };
+
+                        // Gravitational force
+                        forces.y -= this.environment.gravity * state.mass;
+
+                        // Air resistance (quadratic drag)
+                        if (this.environment.density > 0) {
+                            const speed = Math.sqrt(state.velocity.x ** 2 + state.velocity.y ** 2);
+                            if (speed > 0) {
+                                const dragMagnitude = 0.5 * this.environment.density * speed * speed * 
+                                                    this.launchParams.dragCoefficient * this.launchParams.area;
+                                
+                                forces.x -= dragMagnitude * (state.velocity.x / speed);
+                                forces.y -= dragMagnitude * (state.velocity.y / speed);
+                            }
+                        }
+
+                        return forces;
+                    },
+
+                    // State derivative calculation
+                    getDerivatives: (state) => {
+                        const forces = this.physics.calculateForces(state);
+                        return {
+                            velocity: { x: state.velocity.x, y: state.velocity.y },
+                            acceleration: { 
+                                x: forces.x / state.mass, 
+                                y: forces.y / state.mass 
+                            }
+                        };
+                    }
+                };
+            }
+
+            addStateDerivative(state, derivative, dt) {
+                return {
+                    position: {
+                        x: state.position.x + derivative.velocity.x * dt,
+                        y: state.position.y + derivative.velocity.y * dt
+                    },
+                    velocity: {
+                        x: state.velocity.x + derivative.acceleration.x * dt,
+                        y: state.velocity.y + derivative.acceleration.y * dt
+                    },
+                    time: state.time + dt,
+                    mass: state.mass
+                };
+            }
+
+            initializeEventHandlers() {
+                // Control buttons
+                this.elements.launchBtn.addEventListener('click', () => this.executeLaunch());
+                this.elements.resetBtn.addEventListener('click', () => this.executeReset());
+
+                // Environment selection
+                this.elements.environmentSelect.addEventListener('change', (e) => {
+                    this.setEnvironment(e.target.value);
+                });
+
+                // Parameter sliders
+                Object.entries(this.elements.sliders).forEach(([param, slider]) => {
+                    slider.addEventListener('input', (e) => {
+                        this.updateParameter(param, parseFloat(e.target.value));
+                    });
+                });
+
+                // Canvas interaction
+                this.canvas.addEventListener('click', (e) => this.handleCanvasInteraction(e));
+                
+                // Window events
+                window.addEventListener('resize', () => this.resize());
+                window.addEventListener('beforeunload', () => this.cleanup());
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && !this.state.isActive) {
+                        e.preventDefault();
+                        this.executeLaunch();
+                    } else if (e.code === 'Escape') {
+                        e.preventDefault();
+                        this.executeReset();
+                    }
+                });
+            }
+
+            initializeGraphicsSystem() {
+                // Set up high-DPI canvas
+                const devicePixelRatio = window.devicePixelRatio || 1;
+                this.canvas.style.imageRendering = 'pixelated';
+                
+                // Initialize graph systems
+                Object.keys(this.elements.graphs).forEach(key => {
+                    const graph = this.elements.graphs[key];
+                    const ctx = graph.ctx;
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                });
+            }
+
+            validateConfiguration() {
+                const warnings = [];
+
+                // Check for extreme parameters
+                if (this.launchParams.velocity > 200) {
+                    warnings.push('High velocity may exceed realistic ballistic limits');
+                }
+                
+                if (this.environment.gravity > 25) {
+                    warnings.push('Extreme gravity may cause unrealistic behavior');
+                }
+
+                if (this.environment.density > 1000 && this.environment.density < 1200) {
+                    warnings.push('Dense medium selected - projectile behavior will be significantly altered');
+                }
+
+                this.displayWarnings(warnings);
+            }
+
+            displayWarnings(warnings) {
+                const banner = this.elements.warningBanner;
+                if (warnings.length > 0) {
+                    banner.textContent = warnings.join('. ');
+                    banner.style.display = 'block';
+                } else {
+                    banner.style.display = 'none';
+                }
+            }
+
+            updateParameter(param, value) {
+                switch (param) {
+                    case 'gravity':
+                        this.environment.gravity = value;
+                        break;
+                    case 'density':
+                        this.environment.density = value;
+                        break;
+                    case 'dragCoeff':
+                        this.launchParams.dragCoefficient = value;
+                        break;
+                    case 'velocity':
+                        this.launchParams.velocity = value;
+                        break;
+                    case 'angle':
+                        this.launchParams.angle = value;
+                        break;
+                    case 'height':
+                        this.launchParams.height = value;
+                        break;
+                    case 'mass':
+                        this.launchParams.mass = value;
+                        break;
+                    case 'area':
+                        this.launchParams.area = value;
+                        break;
+                }
+
+                this.updateUI();
+                this.updateCannonVisualization();
+                this.validateConfiguration();
+                
+                // Mark as custom environment
+                this.elements.environmentSelect.value = 'custom';
+            }
+
+            setEnvironment(preset) {
+                if (preset !== 'custom' && IndustryGradeProjectileSimulator.ENVIRONMENT_PRESETS[preset]) {
+                    const env = IndustryGradeProjectileSimulator.ENVIRONMENT_PRESETS[preset];
+                    this.environment.gravity = env.gravity;
+                    this.environment.density = env.density;
+                    this.environment.temperature = env.temperature || 288.15;
+                    
+                    this.updateUI();
+                    this.updateCannonVisualization();
+                    this.validateConfiguration();
+                }
+            }
+
+            updateUI() {
+                // Update parameter displays
+                this.elements.displays.gravity.textContent = this.environment.gravity.toFixed(3);
+                this.elements.displays.density.textContent = this.environment.density.toFixed(3);
+                this.elements.displays.dragCoeff.textContent = this.launchParams.dragCoefficient.toFixed(3);
+                this.elements.displays.velocity.textContent = this.launchParams.velocity.toFixed(1);
+                this.elements.displays.angle.textContent = this.launchParams.angle.toFixed(1);
+                this.elements.displays.height.textContent = this.launchParams.height.toFixed(1);
+                this.elements.displays.mass.textContent = this.launchParams.mass.toFixed(3);
+                this.elements.displays.area.textContent = this.launchParams.area.toFixed(4);
+
+                // Update sliders
+                this.elements.sliders.gravity.value = this.environment.gravity;
+                this.elements.sliders.density.value = this.environment.density;
+                this.elements.sliders.dragCoeff.value = this.launchParams.dragCoefficient;
+                this.elements.sliders.velocity.value = this.launchParams.velocity;
+                this.elements.sliders.angle.value = this.launchParams.angle;
+                this.elements.sliders.height.value = this.launchParams.height;
+                this.elements.sliders.mass.value = this.launchParams.mass;
+                this.elements.sliders.area.value = this.launchParams.area;
+
+                // Update live data
+                this.updateLiveData();
+            }
+
+            updateLiveData() {
+                const proj = this.projectile;
+                const speed = Math.sqrt(proj.velocity.x ** 2 + proj.velocity.y ** 2);
+                const kineticEnergy = 0.5 * proj.mass * speed * speed;
+                const potentialEnergy = proj.mass * this.environment.gravity * Math.max(0, proj.position.y);
+                
+                // Calculate drag force
+                let dragForce = 0;
+                if (this.environment.density > 0 && speed > 0) {
+                    dragForce = 0.5 * this.environment.density * speed * speed * 
+                              this.launchParams.dragCoefficient * this.launchParams.area;
+                }
+
+                this.elements.displays.time.textContent = proj.time.toFixed(3);
+                this.elements.displays.velocityMag.textContent = speed.toFixed(1);
+                this.elements.displays.posX.textContent = proj.position.x.toFixed(1);
+                this.elements.displays.posY.textContent = Math.max(0, proj.position.y).toFixed(1);
+                this.elements.displays.maxHeight.textContent = this.state.maxHeight.toFixed(1);
+                this.elements.displays.range.textContent = this.state.finalRange.toFixed(1);
+                this.elements.displays.energy.textContent = kineticEnergy.toFixed(1);
+                this.elements.displays.drag.textContent = dragForce.toFixed(2);
+            }
+
+            updateCannonVisualization() {
+                const cannonX = this.state.cannonPosition.x - 35;
+                const cannonY = this.canvas.height - this.state.cannonPosition.y - 
+                               (this.launchParams.height * this.state.scale) - 35;
+                
+                this.elements.cannonAssembly.style.left = cannonX + 'px';
+                this.elements.cannonAssembly.style.top = cannonY + 'px';
+                this.elements.cannonBarrel.style.transform = `rotate(${-this.launchParams.angle}deg)`;
+            }
+
+            handleCanvasInteraction(event) {
+                if (this.state.isActive) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const clickY = event.clientY - rect.top;
+                
+                const cannonX = this.state.cannonPosition.x;
+                const cannonY = this.canvas.height - this.state.cannonPosition.y - 
+                               (this.launchParams.height * this.state.scale);
+                
+                const deltaX = clickX - cannonX;
+                const deltaY = cannonY - clickY; // Invert Y for proper angle
+                
+                if (deltaX > 0) {
+                    const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+                    const clampedAngle = Math.max(0, Math.min(90, angle));
+                    
+                    this.launchParams.angle = clampedAngle;
+                    this.updateUI();
+                    this.elements.environmentSelect.value = 'custom';
+                }
+            }
+
+            executeLaunch() {
+                if (this.state.isActive) return;
+
+                console.log('Executing launch sequence...');
+                
+                this.reset();
+                this.state.isActive = true;
+                this.state.trajectoryPoints = [];
+                
+                // Clear graph data
+                Object.keys(this.elements.graphs).forEach(key => {
+                    this.elements.graphs[key].data = [];
+                });
+
+                // Initialize projectile state
+                const angleRad = (this.launchParams.angle * Math.PI) / 180;
+                const cannonLength = 100 / this.state.scale; // Cannon barrel length in meters
+
+                this.projectile = {
+                    position: {
+                        x: cannonLength * Math.cos(angleRad),
+                        y: this.launchParams.height + cannonLength * Math.sin(angleRad)
+                    },
+                    velocity: {
+                        x: this.launchParams.velocity * Math.cos(angleRad),
+                        y: this.launchParams.velocity * Math.sin(angleRad)
+                    },
+                    acceleration: { x: 0, y: 0 },
+                    time: 0,
+                    mass: this.launchParams.mass
+                };
+
+                // Show projectile
+                this.elements.projectileElement.style.display = 'block';
+
+                // Update UI state
+                this.elements.launchBtn.textContent = '🛑 Simulation Running';
+                this.elements.launchBtn.disabled = true;
+                this.updateStatusIndicator('ACTIVE');
+
+                console.log('Launch sequence complete. Projectile initialized at:', this.projectile.position);
+            }
+
+            executeReset() {
+                console.log('Executing reset sequence...');
+                
+                if (this.state.animationFrameId) {
+                    cancelAnimationFrame(this.state.animationFrameId);
+                    this.state.animationFrameId = null;
+                }
+
+                // Reset state
+                this.state.isActive = false;
+                this.state.isPaused = false;
+                this.state.trajectoryPoints = [];
+                this.state.maxHeight = 0;
+                this.state.finalRange = 0;
+                this.state.flightTime = 0;
+                this.state.physicsAccumulator = 0;
+                this.state.physicsStepCount = 0;
+
+                // Reset projectile
+                this.projectile = {
+                    position: { x: 0, y: this.launchParams.height },
+                    velocity: { x: 0, y: 0 },
+                    acceleration: { x: 0, y: 0 },
+                    time: 0,
+                    mass: this.launchParams.mass
+                };
+
+                // Hide projectile
+                this.elements.projectileElement.style.display = 'none';
+
+                // Clear graphs
+                Object.keys(this.elements.graphs).forEach(key => {
+                    this.elements.graphs[key].data = [];
+                    this.elements.graphs[key].ctx.clearRect(0, 0, 
+                        this.elements.graphs[key].canvas.width, 
+                        this.elements.graphs[key].canvas.height);
+                });
+
+                // Update UI
+                this.elements.launchBtn.textContent = '🚀 Execute Launch Sequence';
+                this.elements.launchBtn.disabled = false;
+                this.updateStatusIndicator('READY');
+                this.updateUI();
+                this.updateCannonVisualization();
+                this.render();
+
+                console.log('Reset sequence complete');
+            }
+
+            updateStatusIndicator(status) {
+                const indicator = this.elements.statusIndicator;
+                const statusText = `STATUS: ${status}<br>FPS: ${this.state.fpsCounter}<br>PHYSICS: ${Math.round(1/IndustryGradeProjectileSimulator.PHYSICS_CONFIG.PHYSICS_TIMESTEP)} Hz<br>PRECISION: HIGH`;
+                indicator.innerHTML = statusText;
+            }
+
+            startMainLoop() {
+                const loop = (currentTime) => {
+                    const deltaTime = (currentTime - this.state.lastFrameTime) / 1000;
+                    this.state.lastFrameTime = currentTime;
+
+                    // Update FPS counter
+                    this.updateFPS(currentTime);
+
+                    if (this.state.isActive && !this.state.isPaused) {
+                        this.updatePhysics(deltaTime);
+                        this.checkCollisions();
+                    }
+
+                    this.updateProjectileVisualization();
+                    this.updateUI();
+                    this.render();
+                    this.updateGraphs();
+
+                    this.state.animationFrameId = requestAnimationFrame(loop);
+                };
+
+                this.state.animationFrameId = requestAnimationFrame(loop);
+            }
+
+            updateFPS(currentTime) {
+                this.state.frameCount++;
+                if (currentTime - this.state.lastFpsUpdate >= 1000) {
+                    this.state.fpsCounter = Math.round(
+                        (this.state.frameCount * 1000) / (currentTime - this.state.lastFpsUpdate)
+                    );
+                    this.elements.displays.fps.textContent = this.state.fpsCounter;
+                    this.state.frameCount = 0;
+                    this.state.lastFpsUpdate = currentTime;
+                }
+            }
+
+            updatePhysics(deltaTime) {
+                // Fixed timestep physics with accumulator
+                this.state.physicsAccumulator += Math.min(deltaTime, 1/30); // Cap at 30fps
+
+                while (this.state.physicsAccumulator >= IndustryGradeProjectileSimulator.PHYSICS_CONFIG.PHYSICS_TIMESTEP) {
+                    const dt = IndustryGradeProjectileSimulator.PHYSICS_CONFIG.PHYSICS_TIMESTEP;
+                    
+                    // Apply Runge-Kutta 4th order integration
+                    const newState = this.physics.integrateRK4(
+                        this.projectile, 
+                        this.physics.getDerivatives.bind(this), 
+                        dt
+                    );
+
+                    // Update projectile state
+                    this.projectile.position = newState.position;
+                    this.projectile.velocity = newState.velocity;
+                    this.projectile.time = newState.time;
+
+                    // Calculate acceleration for display
+                    const derivatives = this.physics.getDerivatives(this.projectile);
+                    this.projectile.acceleration = derivatives.acceleration;
+
+                    // Record trajectory point
+                    this.recordTrajectoryPoint();
+
+                    // Update statistics
+                    this.state.maxHeight = Math.max(this.state.maxHeight, this.projectile.position.y);
+                    this.state.finalRange = Math.max(this.state.finalRange, this.projectile.position.x);
+
+                    this.state.physicsAccumulator -= dt;
+                    this.state.physicsStepCount++;
+                }
+            }
+
+            recordTrajectoryPoint() {
+                const proj = this.projectile;
+                const canvasX = this.state.cannonPosition.x + proj.position.x * this.state.scale;
+                const canvasY = this.canvas.height - this.state.cannonPosition.y - proj.position.y * this.state.scale;
+
+                this.state.trajectoryPoints.push({
+                    x: canvasX,
+                    y: canvasY,
+                    worldX: proj.position.x,
+                    worldY: proj.position.y,
+                    time: proj.time,
+                    velocity: { x: proj.velocity.x, y: proj.velocity.y }
+                });
+
+                // Record graph data
+                this.elements.graphs.trajectory.data.push({ x: proj.position.x, y: proj.position.y });
+                this.elements.graphs.height.data.push({ x: proj.time, y: proj.position.y });
+                this.elements.graphs.range.data.push({ x: proj.time, y: proj.position.x });
+            }
+
+            checkCollisions() {
+                // Ground collision with precise interpolation
+                if (this.projectile.position.y <= 0 && this.projectile.velocity.y < 0) {
+                    // Interpolate to find exact collision point
+                    this.projectile.position.y = 0;
+                    this.state.flightTime = this.projectile.time;
+                    this.terminateSimulation();
+                }
+
+                // Check for maximum simulation time
+                if (this.projectile.time > IndustryGradeProjectileSimulator.PHYSICS_CONFIG.MAX_SIMULATION_TIME) {
+                    console.warn('Maximum simulation time exceeded');
+                    this.terminateSimulation();
+                }
+            }
+
+            terminateSimulation() {
+                this.state.isActive = false;
+                this.elements.launchBtn.textContent = '🚀 Execute Launch Sequence';
+                this.elements.launchBtn.disabled = false;
+                this.updateStatusIndicator('COMPLETE');
+                
+                console.log(`Simulation complete. Flight time: ${this.state.flightTime.toFixed(3)}s, Range: ${this.state.finalRange.toFixed(2)}m`);
+            }
+
+            updateProjectileVisualization() {
+                if (!this.state.isActive) return;
+
+                const canvasX = this.state.cannonPosition.x + this.projectile.position.x * this.state.scale;
+                const canvasY = this.canvas.height - this.state.cannonPosition.y - this.projectile.position.y * this.state.scale;
+
+                this.elements.projectileElement.style.left = (canvasX - 9) + 'px';
+                this.elements.projectileElement.style.top = (canvasY - 9) + 'px';
+            }
+
+            resize() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                this.render();
+            }
+
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Render ground with realistic texture
+                this.renderGround();
+                
+                // Render grid system
+                this.renderGrid();
+                
+                // Render trajectory path
+                this.renderTrajectory();
+                
+                // Render environmental effects
+                this.renderEnvironmentalEffects();
+            }
+
+            renderGround() {
+                const groundY = this.canvas.height - this.state.cannonPosition.y + 40;
+                
+                // Ground gradient
+                const gradient = this.ctx.createLinearGradient(0, groundY, 0, this.canvas.height);
+                gradient.addColorStop(0, '#8b7355');
+                gradient.addColorStop(0.4, '#6b5b47');
+                gradient.addColorStop(1, '#4a3c28');
+                
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, groundY, this.canvas.width, this.canvas.height - groundY);
+
+                // Ground texture
+                this.ctx.fillStyle = 'rgba(139, 115, 85, 0.2)';
+                for (let i = 0; i < this.canvas.width; i += 25) {
+                    for (let j = groundY; j < this.canvas.height; j += 20) {
+                        if (Math.random() > 0.8) {
+                            this.ctx.fillRect(i + Math.random() * 8, j + Math.random() * 8, 3, 3);
+                        }
+                    }
+                }
+            }
+
+            renderGrid() {
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                this.ctx.lineWidth = 0.5;
+                this.ctx.setLineDash([2, 4]);
+
+                // Grid spacing represents 10 meters
+                const gridSpacing = 10 * this.state.scale;
+
+                for (let x = 0; x < this.canvas.width; x += gridSpacing) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.canvas.height);
+                    this.ctx.stroke();
+                }
+
+                for (let y = 0; y < this.canvas.height; y += gridSpacing) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.canvas.width, y);
+                    this.ctx.stroke();
+                }
+
+                this.ctx.setLineDash([]);
+            }
+
+            renderTrajectory() {
+                if (this.state.trajectoryPoints.length < 2) return;
+
+                // Trajectory path with gradient
+                const startPoint = this.state.trajectoryPoints[0];
+                const endPoint = this.state.trajectoryPoints[this.state.trajectoryPoints.length - 1];
+                
+                const gradient = this.ctx.createLinearGradient(
+                    startPoint.x, startPoint.y, endPoint.x, endPoint.y
+                );
+                gradient.addColorStop(0, 'rgba(251, 191, 36, 0.9)');
+                gradient.addColorStop(0.5, 'rgba(239, 68, 68, 0.7)');
+                gradient.addColorStop(1, 'rgba(59, 130, 246, 0.6)');
+
+                this.ctx.strokeStyle = gradient;
+                this.ctx.lineWidth = 4;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                
+                // Add glow effect
+                this.ctx.shadowColor = 'rgba(251, 191, 36, 0.5)';
+                this.ctx.shadowBlur = 8;
+
+                this.ctx.beginPath();
+                this.state.trajectoryPoints.forEach((point, index) => {
+                    if (index === 0) {
+                        this.ctx.moveTo(point.x, point.y);
+                    } else {
+                        this.ctx.lineTo(point.x, point.y);
+                    }
+                });
+                this.ctx.stroke();
+
+                // Reset shadow
+                this.ctx.shadowBlur = 0;
+
+                // Velocity vectors at intervals
+                this.renderVelocityVectors();
+            }
+
+            renderVelocityVectors() {
+                if (!this.state.isActive) return;
+
+                this.ctx.strokeStyle = 'rgba(16, 185, 129, 0.8)';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([]);
+
+                const vectorScale = 0.1;
+                const vectorInterval = Math.max(1, Math.floor(this.state.trajectoryPoints.length / 20));
+
+                for (let i = 0; i < this.state.trajectoryPoints.length; i += vectorInterval) {
+                    const point = this.state.trajectoryPoints[i];
+                    const vel = point.velocity;
+                    
+                    if (vel) {
+                        const endX = point.x + vel.x * vectorScale * this.state.scale;
+                        const endY = point.y - vel.y * vectorScale * this.state.scale;
+                        
+                        // Vector line
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(point.x, point.y);
+                        this.ctx.lineTo(endX, endY);
+                        this.ctx.stroke();
+                        
+                        // Arrow head
+                        const angle = Math.atan2(endY - point.y, endX - point.x);
+                        const headLength = 8;
+                        
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(endX, endY);
+                        this.ctx.lineTo(
+                            endX - headLength * Math.cos(angle - Math.PI/6),
+                            endY - headLength * Math.sin(angle - Math.PI/6)
+                        );
+                        this.ctx.moveTo(endX, endY);
+                        this.ctx.lineTo(
+                            endX - headLength * Math.cos(angle + Math.PI/6),
+                            endY - headLength * Math.sin(angle + Math.PI/6)
+                        );
+                        this.ctx.stroke();
+                    }
+                }
+            }
+
+            renderEnvironmentalEffects() {
+                // Air density visualization
+                if (this.environment.density > 0) {
+                    const alpha = Math.min(this.environment.density / 2000, 0.4);
+                    this.ctx.fillStyle = `rgba(173, 216, 230, ${alpha})`;
+                    this.ctx.fillRect(0, 0, this.canvas.width, 
+                        this.canvas.height - this.state.cannonPosition.y + 40);
+                }
+
+                // Environmental particles for non-vacuum environments
+                if (this.environment.density > 100) {
+                    this.renderEnvironmentalParticles();
+                }
+            }
+
+            renderEnvironmentalParticles() {
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                const particleCount = Math.min(50, this.environment.density / 20);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const x = Math.random() * this.canvas.width;
+                    const y = Math.random() * this.canvas.height;
+                    const size = Math.random() * 2 + 1;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, size, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                }
+            }
+
+            updateGraphs() {
+                this.renderGraph(this.elements.graphs.trajectory, 'x', 'y', 'Range (m)', 'Height (m)', '#3b82f6');
+                this.renderGraph(this.elements.graphs.height, 'x', 'y', 'Time (s)', 'Height (m)', '#10b981');
+                this.renderGraph(this.elements.graphs.range, 'x', 'y', 'Time (s)', 'Range (m)', '#f59e0b');
+            }
+
+            renderGraph(graph, xProp, yProp, xLabel, yLabel, color) {
+                const { ctx, canvas, data } = graph;
+                const padding = 60;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (data.length < 2) return;
+
+                // Calculate data bounds
+                const xValues = data.map(d => d[xProp]);
+                const yValues = data.map(d => d[yProp]);
+                const minX = Math.min(...xValues);
+                const maxX = Math.max(...xValues);
+                const minY = Math.min(...yValues);
+                const maxY = Math.max(...yValues);
+
+                const xRange = maxX - minX || 1;
+                const yRange = maxY - minY || 1;
+
+                // Professional graph background
+                const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                bgGradient.addColorStop(0, 'rgba(15, 23, 42, 0.8)');
+                bgGradient.addColorStop(1, 'rgba(30, 41, 59, 0.6)');
+                ctx.fillStyle = bgGradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Grid lines
+                ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i <= 10; i++) {
+                    const x = padding + (i / 10) * (canvas.width - 2 * padding);
+                    const y = padding + (i / 10) * (canvas.height - 2 * padding);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding);
+                    ctx.lineTo(x, canvas.height - padding);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(padding, y);
+                    ctx.lineTo(canvas.width - padding, y);
+                    ctx.stroke();
+                }
+
+                // Axes
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(padding, padding);
+                ctx.lineTo(padding, canvas.height - padding);
+                ctx.lineTo(canvas.width - padding, canvas.height - padding);
+                ctx.stroke();
+
+                // Data line with glow
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+                gradient.addColorStop(0, color);
+                gradient.addColorStop(1, color + '80');
+                
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 6;
+                
+                ctx.beginPath();
+                data.forEach((point, index) => {
+                    const x = padding + ((point[xProp] - minX) / xRange) * (canvas.width - 2 * padding);
+                    const y = canvas.height - padding - ((point[yProp] - minY) / yRange) * (canvas.height - 2 * padding);
+                    
+                    if (index === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // Current position marker
+                if (data.length > 0) {
+                    const lastPoint = data[data.length - 1];
+                    const x = padding + ((lastPoint[xProp] - minX) / xRange) * (canvas.width - 2 * padding);
+                    const y = canvas.height - padding - ((lastPoint[yProp] - minY) / yRange) * (canvas.height - 2 * padding);
+                    
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Pulse effect
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 12, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+
+                // Professional labels
+                ctx.fillStyle = '#cbd5e1';
+                ctx.font = 'bold 14px SF Pro Display';
+                ctx.textAlign = 'center';
+                ctx.fillText(xLabel, canvas.width / 2, canvas.height - 20);
+                
+                ctx.save();
+                ctx.translate(25, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText(yLabel, 0, 0);
+                ctx.restore();
+
+                // Scale markers
+                ctx.font = '12px SF Mono';
+                ctx.fillStyle = '#94a3b8';
+                ctx.textAlign = 'center';
+                
+                for (let i = 0; i <= 5; i++) {
+                    const value = minX + (i / 5) * xRange;
+                    const x = padding + (i / 5) * (canvas.width - 2 * padding);
+                    ctx.fillText(value.toFixed(1), x, canvas.height - 8);
+                }
+                
+                ctx.textAlign = 'right';
+                for (let i = 0; i <= 5; i++) {
+                    const value = minY + (i / 5) * yRange;
+                    const y = canvas.height - padding - (i / 5) * (canvas.height - 2 * padding);
+                    ctx.fillText(value.toFixed(1), padding - 12, y + 4);
+                }
+            }
+
+            reset() {
+                // Use executeReset for consistency
+                this.executeReset();
+            }
+
+            cleanup() {
+                if (this.state.animationFrameId) {
+                    cancelAnimationFrame(this.state.animationFrameId);
+                }
+                console.log('Industry-Grade Projectile Simulator cleaned up');
+            }
+        }
+
+        // Initialize the simulator when DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            window.simulator = new IndustryGradeProjectileSimulator();
+        });
+    </script>
+</body>
+</html>

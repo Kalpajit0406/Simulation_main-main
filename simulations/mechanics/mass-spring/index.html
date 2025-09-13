@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mass-Spring System Simulation</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #2c3e50;
+            overflow: hidden;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            text-align: left;
+            color: #2c3e50;
+            margin: 18px 0 0 40px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            text-align: left;
+            color: #7f8c8d;
+            margin: 0 0 18px 40px;
+            font-size: 1.3em;
+        }
+        .main-flex {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            padding: 0 40px;
+        }
+        .simulation-panel {
+            flex: 2;
+            background: white;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        .controls-panel {
+            flex: 1;
+            background: white;
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+        }
+        #simulationCanvas {
+            width: 100%;
+            height: 500px;
+            background: #fff;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        #graphCanvas {
+            width: 100%;
+            height: 200px;
+            background: #fff;
+            border-radius: 12px;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        label {
+            min-width: 120px;
+            font-weight: 500;
+        }
+        input[type="range"] {
+            flex: 1;
+        }
+        input[type="number"] {
+            width: 80px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #3498db;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .data-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .data-item {
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .data-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        .data-value {
+            font-size: 1.2em;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mass-Spring System</h1>
+    <p class="subtitle">Interactive simulation of simple harmonic motion</p>
+    
+    <div class="main-flex">
+        <div class="simulation-panel">
+            <canvas id="simulationCanvas"></canvas>
+            <canvas id="graphCanvas"></canvas>
+        </div>
+        
+        <div class="controls-panel">
+            <div class="control-group">
+                <label for="mass">Mass (kg)</label>
+                <input type="range" id="mass" min="0.1" max="2" step="0.1" value="1">
+                <input type="number" id="massNum" min="0.1" max="2" step="0.1" value="1">
+            </div>
+            
+            <div class="control-group">
+                <label for="springConstant">Spring Constant (N/m)</label>
+                <input type="range" id="springConstant" min="1" max="50" step="1" value="20">
+                <input type="number" id="springConstantNum" min="1" max="50" step="1" value="20">
+            </div>
+            
+            <div class="control-group">
+                <label for="damping">Damping</label>
+                <input type="range" id="damping" min="0" max="1" step="0.05" value="0">
+                <input type="number" id="dampingNum" min="0" max="1" step="0.05" value="0">
+            </div>
+            
+            <div class="control-group">
+                <label for="initialDisplacement">Initial Displacement (m)</label>
+                <input type="range" id="initialDisplacement" min="-1" max="1" step="0.1" value="0.5">
+                <input type="number" id="initialDisplacementNum" min="-1" max="1" step="0.1" value="0.5">
+            </div>
+            
+            <div class="button-group">
+                <button id="startBtn">Start</button>
+                <button id="pauseBtn" disabled>Pause</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+            
+            <div class="data-display">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <div class="data-label">Position (m)</div>
+                        <div class="data-value" id="positionValue">0.00</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">Velocity (m/s)</div>
+                        <div class="data-value" id="velocityValue">0.00</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">Energy (J)</div>
+                        <div class="data-value" id="energyValue">0.00</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">Period (s)</div>
+                        <div class="data-value" id="periodValue">0.00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    const simCanvas = document.getElementById('simulationCanvas');
+    const simCtx = simCanvas.getContext('2d');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const graphCtx = graphCanvas.getContext('2d');
+
+    // Set actual canvas sizes (ensure correct size on resize)
+    function resizeCanvases() {
+        simCanvas.width = simCanvas.clientWidth;
+        simCanvas.height = simCanvas.clientHeight;
+        graphCanvas.width = graphCanvas.clientWidth;
+        graphCanvas.height = graphCanvas.clientHeight;
+        // Update equilibrium and redraw
+        system.equilibrium = simCanvas.width / 2;
+        drawSystem();
+        drawGraph();
+    }
+    window.addEventListener('resize', resizeCanvases);
+
+    // Spring-mass system parameters
+    let system = {
+        mass: 1.0,
+        k: 20.0,
+        damping: 0.0,
+        x: 0.5,
+        v: 0,
+        equilibrium: simCanvas.width / 2,
+        wallX: 100,
+        isRunning: false,
+        time: 0,
+        history: [],
+        scale: 200, // pixels per meter
+    };
+
+    function drawSpring(x) {
+        // Draw a wavy animated spring from wallX to x
+        const segments = 24;
+        const amplitude = 16;
+        const springLength = x - system.wallX;
+        const dx = springLength / segments;
+        const now = performance.now() * 0.002; // for animation
+
+        simCtx.save();
+        simCtx.beginPath();
+        simCtx.moveTo(system.wallX, simCanvas.height/2);
+
+        for (let i = 1; i < segments; i++) {
+            // Animate the phase for a lively spring
+            const phase = now + i * 0.25;
+            const yOffset = amplitude * Math.sin(i * Math.PI + phase);
+            const xPos = system.wallX + i * dx;
+            simCtx.lineTo(xPos, simCanvas.height/2 + yOffset);
+        }
+
+        simCtx.lineTo(x, simCanvas.height/2);
+        simCtx.strokeStyle = '#3498db';
+        simCtx.lineWidth = 4;
+        simCtx.shadowColor = "#2980b9";
+        simCtx.shadowBlur = 4;
+        simCtx.stroke();
+        simCtx.shadowBlur = 0;
+        simCtx.restore();
+
+        // Outline for spring
+        simCtx.save();
+        simCtx.beginPath();
+        simCtx.moveTo(system.wallX, simCanvas.height/2);
+        for (let i = 1; i < segments; i++) {
+            const phase = now + i * 0.25;
+            const yOffset = amplitude * Math.sin(i * Math.PI + phase);
+            const xPos = system.wallX + i * dx;
+            simCtx.lineTo(xPos, simCanvas.height/2 + yOffset);
+        }
+        simCtx.lineTo(x, simCanvas.height/2);
+        simCtx.strokeStyle = '#1a232b';
+        simCtx.lineWidth = 1.5;
+        simCtx.shadowBlur = 0;
+        simCtx.stroke();
+        simCtx.restore();
+    }
+
+    function drawMass(x) {
+        simCtx.save();
+        const size = 40;
+        // Draw box
+        simCtx.fillStyle = '#e74c3c';
+        simCtx.strokeStyle = '#c0392b';
+        simCtx.lineWidth = 3;
+        simCtx.beginPath();
+        simCtx.rect(x - size/2, simCanvas.height/2 - size/2, size, size);
+        simCtx.fill();
+        simCtx.shadowColor = "#c0392b";
+        simCtx.shadowBlur = 8;
+        simCtx.stroke();
+        simCtx.shadowBlur = 0;
+
+        // Outline for mass
+        simCtx.beginPath();
+        simCtx.rect(x - size/2, simCanvas.height/2 - size/2, size, size);
+        simCtx.strokeStyle = '#222';
+        simCtx.lineWidth = 1.5;
+        simCtx.stroke();
+
+        // Draw displacement line
+        simCtx.beginPath();
+        simCtx.moveTo(system.equilibrium, simCanvas.height/2 + 50);
+        simCtx.lineTo(system.equilibrium, simCanvas.height/2 + 70);
+        simCtx.strokeStyle = '#95a5a6';
+        simCtx.lineWidth = 2;
+        simCtx.stroke();
+
+        // Draw current position line
+        simCtx.beginPath();
+        simCtx.moveTo(x, simCanvas.height/2 + 50);
+        simCtx.lineTo(x, simCanvas.height/2 + 70);
+        simCtx.strokeStyle = '#e74c3c';
+        simCtx.lineWidth = 2;
+        simCtx.stroke();
+
+        // Draw displacement arrow and value
+        const displacement = ((x - system.equilibrium) / system.scale).toFixed(2);
+        simCtx.beginPath();
+        simCtx.moveTo(system.equilibrium, simCanvas.height/2 + 60);
+        simCtx.lineTo(x, simCanvas.height/2 + 60);
+        simCtx.strokeStyle = '#2c3e50';
+        simCtx.lineWidth = 2;
+        simCtx.stroke();
+
+        // Add arrowhead
+        const arrowSize = 8;
+        const direction = x > system.equilibrium ? 1 : -1;
+        simCtx.beginPath();
+        simCtx.moveTo(x, simCanvas.height/2 + 60);
+        simCtx.lineTo(x - direction * arrowSize, simCanvas.height/2 + 60 - arrowSize);
+        simCtx.lineTo(x - direction * arrowSize, simCanvas.height/2 + 60 + arrowSize);
+        simCtx.closePath();
+        simCtx.fillStyle = '#2c3e50';
+        simCtx.fill();
+
+        simCtx.font = "bold 16px Segoe UI";
+        simCtx.fillStyle = "#2c3e50";
+        simCtx.fillText(`${displacement} m`, (system.equilibrium + x)/2 - 18, simCanvas.height/2 + 55);
+
+        simCtx.restore();
+    }
+
+    function drawWall() {
+        simCtx.save();
+        simCtx.fillStyle = '#34495e';
+        simCtx.fillRect(system.wallX - 20, simCanvas.height/2 - 100, 20, 200);
+        // Wall outline
+        simCtx.strokeStyle = '#222';
+        simCtx.lineWidth = 2;
+        simCtx.strokeRect(system.wallX - 20, simCanvas.height/2 - 100, 20, 200);
+        simCtx.restore();
+    }
+
+    function updateSystem(dt) {
+        const F = -system.k * system.x - system.damping * system.v; // F = -kx - cv
+        const a = F / system.mass;
+        system.v += a * dt;
+        system.x += system.v * dt;
+        system.time += dt;
+
+        // Update displayed values
+        document.getElementById('positionValue').textContent = system.x.toFixed(3);
+        document.getElementById('velocityValue').textContent = system.v.toFixed(3);
+
+        const kineticEnergy = 0.5 * system.mass * system.v * system.v;
+        const potentialEnergy = 0.5 * system.k * system.x * system.x;
+        const totalEnergy = kineticEnergy + potentialEnergy;
+        document.getElementById('energyValue').textContent = totalEnergy.toFixed(3);
+
+        const period = 2 * Math.PI * Math.sqrt(system.mass / system.k);
+        document.getElementById('periodValue').textContent = period.toFixed(3);
+
+        // Store history for graph
+        system.history.push({time: system.time, position: system.x, velocity: system.v});
+        if (system.history.length > 1000) system.history.shift();
+    }
+
+    function drawSystem() {
+        simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+
+        const pixelX = system.equilibrium + system.x * system.scale;
+        drawWall();
+        drawSpring(pixelX);
+        drawMass(pixelX);
+    }
+
+    function drawGraph() {
+        graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+        if (system.history.length < 2) return;
+
+        // --- Draw axes with ticks and grid ---
+        const marginLeft = 50, marginRight = 20, marginTop = 20, marginBottom = 20;
+        const graphW = graphCanvas.width - marginLeft - marginRight;
+        const graphH = graphCanvas.height - marginTop - marginBottom;
+        const timeWindow = 5; // seconds
+        const xScale = graphW / timeWindow;
+        const yScale = 80; // pixels per meter
+
+        // Find the latest time to align the window to the right
+        const latestTime = system.history[system.history.length - 1].time;
+        const tMin = Math.max(0, latestTime - timeWindow);
+
+        // Draw grid lines
+        graphCtx.save();
+        graphCtx.strokeStyle = "#e0e0e0";
+        graphCtx.lineWidth = 1;
+        graphCtx.setLineDash([4, 6]);
+        // Vertical grid (time)
+        for (let t = Math.ceil(tMin); t <= tMin + timeWindow; t++) {
+            const x = marginLeft + (t - tMin) * xScale;
+            graphCtx.beginPath();
+            graphCtx.moveTo(x, marginTop);
+            graphCtx.lineTo(x, graphCanvas.height - marginBottom);
+            graphCtx.stroke();
+        }
+        // Horizontal grid (y)
+        for (let y = -2; y <= 2; y += 0.5) {
+            const yPx = graphCanvas.height/2 - y * yScale;
+            graphCtx.beginPath();
+            graphCtx.moveTo(marginLeft, yPx);
+            graphCtx.lineTo(graphCanvas.width - marginRight, yPx);
+            graphCtx.stroke();
+        }
+        graphCtx.setLineDash([]);
+        graphCtx.restore();
+
+        // Draw axes with ticks
+        graphCtx.save();
+        graphCtx.strokeStyle = '#444';
+        graphCtx.lineWidth = 2;
+        // X axis
+        graphCtx.beginPath();
+        graphCtx.moveTo(marginLeft, graphCanvas.height/2);
+        graphCtx.lineTo(graphCanvas.width - marginRight, graphCanvas.height/2);
+        graphCtx.stroke();
+        // Y axis
+        graphCtx.beginPath();
+        graphCtx.moveTo(marginLeft, marginTop);
+        graphCtx.lineTo(marginLeft, graphCanvas.height - marginBottom);
+        graphCtx.stroke();
+
+        // X ticks (time)
+        graphCtx.font = "13px Segoe UI";
+        graphCtx.fillStyle = "#444";
+        for (let t = Math.ceil(tMin); t <= tMin + timeWindow; t++) {
+            const x = marginLeft + (t - tMin) * xScale;
+            graphCtx.beginPath();
+            graphCtx.moveTo(x, graphCanvas.height/2 - 6);
+            graphCtx.lineTo(x, graphCanvas.height/2 + 6);
+            graphCtx.stroke();
+            graphCtx.fillText(t.toFixed(0), x - 8, graphCanvas.height/2 + 22);
+        }
+        // Y ticks (position/velocity)
+        for (let y = -2; y <= 2; y += 0.5) {
+            const yPx = graphCanvas.height/2 - y * yScale;
+            graphCtx.beginPath();
+            graphCtx.moveTo(marginLeft - 6, yPx);
+            graphCtx.lineTo(marginLeft + 6, yPx);
+            graphCtx.stroke();
+            if (Math.abs(y) < 0.01) continue; // skip 0 label
+            graphCtx.fillText(y.toFixed(1), marginLeft - 38, yPx + 5);
+        }
+        graphCtx.restore();
+
+        // Draw border
+        graphCtx.save();
+        graphCtx.strokeStyle = "#222";
+        graphCtx.lineWidth = 2;
+        graphCtx.strokeRect(marginLeft, marginTop, graphW, graphH);
+        graphCtx.restore();
+
+        // --- Plot position curve ---
+        graphCtx.save();
+        graphCtx.strokeStyle = '#3498db';
+        graphCtx.lineWidth = 2.5;
+        graphCtx.beginPath();
+        let first = true;
+        for (let i = 0; i < system.history.length; i++) {
+            const point = system.history[i];
+            if (point.time < tMin) continue;
+            const x = marginLeft + (point.time - tMin) * xScale;
+            const y = graphCanvas.height/2 - point.position * yScale;
+            if (first) { graphCtx.moveTo(x, y); first = false; }
+            else { graphCtx.lineTo(x, y); }
+        }
+        graphCtx.shadowColor = "#2980b9";
+        graphCtx.shadowBlur = 6;
+        graphCtx.stroke();
+        graphCtx.shadowBlur = 0;
+        graphCtx.restore();
+
+        // --- Plot velocity curve ---
+        graphCtx.save();
+        graphCtx.strokeStyle = '#e74c3c';
+        graphCtx.lineWidth = 2.5;
+        graphCtx.beginPath();
+        first = true;
+        for (let i = 0; i < system.history.length; i++) {
+            const point = system.history[i];
+            if (point.time < tMin) continue;
+            const x = marginLeft + (point.time - tMin) * xScale;
+            const y = graphCanvas.height/2 - point.velocity * yScale;
+            if (first) { graphCtx.moveTo(x, y); first = false; }
+            else { graphCtx.lineTo(x, y); }
+        }
+        graphCtx.shadowColor = "#c0392b";
+        graphCtx.shadowBlur = 6;
+        graphCtx.stroke();
+        graphCtx.shadowBlur = 0;
+        graphCtx.restore();
+
+        // --- Add axis labels and legend ---
+        graphCtx.save();
+        graphCtx.font = "bold 15px Segoe UI";
+        graphCtx.fillStyle = "#2980b9";
+        graphCtx.fillText("Position", graphCanvas.width - 120, 35);
+        graphCtx.fillStyle = "#e74c3c";
+        graphCtx.fillText("Velocity", graphCanvas.width - 120, 60);
+
+        // Y axis label
+        graphCtx.save();
+        graphCtx.translate(marginLeft - 45, graphCanvas.height/2 - 60);
+        graphCtx.rotate(-Math.PI/2);
+        graphCtx.fillStyle = "#444";
+        graphCtx.font = "bold 15px Segoe UI";
+        graphCtx.fillText("Position / Velocity (m, m/s)", 0, 0);
+        graphCtx.restore();
+
+        // X axis label
+        graphCtx.fillStyle = "#444";
+        graphCtx.font = "bold 15px Segoe UI";
+        graphCtx.fillText("Time (s)", graphCanvas.width/2 - 40, graphCanvas.height - 10);
+        graphCtx.restore();
+    }
+
+    function animate() {
+        if (!system.isRunning) return;
+        updateSystem(1/60);
+        drawSystem();
+        drawGraph();
+        requestAnimationFrame(animate);
+    }
+
+    // Event listeners
+    document.getElementById('startBtn').addEventListener('click', function() {
+        system.isRunning = true;
+        this.disabled = true;
+        document.getElementById('pauseBtn').disabled = false;
+        animate();
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', function() {
+        system.isRunning = false;
+        this.disabled = true;
+        document.getElementById('startBtn').disabled = false;
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', function() {
+        system.isRunning = false;
+        system.x = parseFloat(document.getElementById('initialDisplacement').value);
+        system.v = 0;
+        system.time = 0;
+        system.history = [];
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('pauseBtn').disabled = true;
+        drawSystem();
+        drawGraph();
+    });
+
+    // Sync sliders and number inputs
+    function setupControl(sliderId, numberId, property) {
+        const slider = document.getElementById(sliderId);
+        const number = document.getElementById(numberId);
+
+        slider.addEventListener('input', function() {
+            number.value = this.value;
+            system[property] = parseFloat(this.value);
+            if (property === 'x') system.v = 0;
+            if (!system.isRunning) {
+                drawSystem();
+                drawGraph();
+            }
+        });
+
+        number.addEventListener('input', function() {
+            slider.value = this.value;
+            system[property] = parseFloat(this.value);
+            if (property === 'x') system.v = 0;
+            if (!system.isRunning) {
+                drawSystem();
+                drawGraph();
+            }
+        });
+    }
+
+    setupControl('mass', 'massNum', 'mass');
+    setupControl('springConstant', 'springConstantNum', 'k');
+    setupControl('damping', 'dampingNum', 'damping');
+    setupControl('initialDisplacement', 'initialDisplacementNum', 'x');
+
+    // Initial draw and resize
+    resizeCanvases();
+</script>
+</body>
+</html>
